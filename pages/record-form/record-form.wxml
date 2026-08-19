@@ -1,0 +1,12 @@
+<navigation-bar title="记录一餐" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad form-page">
+  <view class="intro"><view class="eyebrow">MEAL LOG</view><view class="page-title">今天吃得怎么样？</view></view>
+  <view class="form-card card">
+    <view class="field"><view class="label">吃了什么</view><picker wx:if="{{dishes.length}}" range="{{dishNames}}" value="{{dishIndex}}" bindchange="dishChange"><view class="picker-value"><text>{{dishes[dishIndex].emoji}} {{dishName}}</text><text>更换 ›</text></view></picker><view wx:else class="picker-value muted">还没有菜品，请先去菜谱添加</view></view>
+    <view class="two-col"><view class="field"><view class="label">日期</view><picker mode="date" value="{{date}}" end="{{today}}" bindchange="dateChange"><view class="small-picker">{{date}}</view></picker></view><view class="field"><view class="label">餐次</view><picker range="{{meals}}" bindchange="mealChange"><view class="small-picker">{{mealType}} ›</view></picker></view></view>
+    <view class="field score-field"><view class="score-head"><view class="label">这一餐打几分</view><view class="score-number">★ {{score}}</view></view><slider min="1" max="5" step="0.5" value="{{score}}" activeColor="#E8A52A" backgroundColor="#E9E4DA" block-color="#FFFDF8" block-size="24" bindchange="scoreChange"/><view class="score-labels"><text>不太满意</text><text>非常满意</text></view></view>
+    <view class="field"><view class="label">饮食状态</view><view class="status-grid"><view wx:for="{{statuses}}" wx:key="name" class="status {{status === item.name ? 'active' : ''}}" data-value="{{item.name}}" bindtap="chooseStatus"><text class="status-emoji">{{item.emoji}}</text><text>{{item.name}}</text></view></view></view>
+    <view class="field no-border"><view class="label">随手记两句</view><textarea placeholder="味道、店铺、心情……" value="{{remark}}" bindinput="remarkChange" maxlength="200" /></view>
+  </view>
+  <button class="primary-btn save-btn" bindtap="save">保存这餐</button>
+</view></scroll-view>

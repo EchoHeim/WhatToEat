@@ -1,0 +1,16 @@
+<navigation-bar title="我的菜谱" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list">
+  <view class="page-pad">
+    <view class="title-row"><view><view class="page-title">我的菜品库</view><view class="muted count">已经收藏 {{total}} 道好吃的</view></view><button class="add-btn" bindtap="addDish">＋ 添加</button></view>
+    <view class="search"><text class="search-icon">⌕</text><input placeholder="搜索菜品或标签" value="{{keyword}}" bindinput="search" confirm-type="search" /></view>
+    <scroll-view class="category-scroll" scroll-x><view class="category-row"><view wx:for="{{categories}}" wx:key="*this" class="category {{activeCategory === item ? 'active' : ''}}" data-value="{{item}}" bindtap="chooseCategory">{{item}}</view></view></scroll-view>
+    <view class="list-head"><text class="section-title">{{activeCategory}}</text><picker range="{{sortOptions}}" bindchange="changeSort"><view class="sort">{{sort}} ▾</view></picker></view>
+    <view wx:if="{{dishes.length}}" class="dish-list">
+      <view wx:for="{{dishes}}" wx:key="id" class="dish-card card" data-id="{{item.id}}" bindtap="openDish">
+        <view class="dish-emoji">{{item.emoji}}</view><view class="dish-main"><view class="dish-name">{{item.name}}</view><view class="dish-meta">{{item.category}} · {{item.eatTypes[0] || '未设置方式'}}</view><view class="tag-line"><text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" wx:if="{{index < 3}}">#{{tag}} </text></view></view>
+        <view class="dish-side"><text class="score">★ {{item.scoreText}}</text><text class="times">吃过 {{item.eatCount}} 次</text><text class="arrow">›</text></view>
+      </view>
+    </view>
+    <view wx:else class="empty card">没有找到菜品<br/><text>换个关键词，或者添加一道新菜吧</text></view>
+  </view>
+</scroll-view>

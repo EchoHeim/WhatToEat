@@ -1,0 +1,34 @@
+<navigation-bar title="今天吃什么" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="scrollarea" scroll-y type="list">
+  <view class="page-pad home">
+    <view class="hello-row">
+      <view><view class="eyebrow">FOOD DECISION</view><view class="headline">这一顿，交给运气吧</view></view>
+      <view class="filter-entry" bindtap="toggleFilters"><text>筛选</text><text wx:if="{{filterCount}}" class="filter-badge">{{filterCount}}</text></view>
+    </view>
+    <view wx:if="{{filterOpen}}" class="filter-card card">
+      <view class="filter-head"><text class="section-title">限定范围</text><text class="clear" bindtap="clearFilters">清空</text></view>
+      <view class="filter-label">餐次</view><view class="chip-row"><view wx:for="{{meals}}" wx:key="*this" class="choice {{filters.meal === item ? 'active' : ''}}" data-type="meal" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
+      <view class="filter-label">类型</view><scroll-view scroll-x class="horizontal"><view class="chip-row nowrap"><view wx:for="{{categories}}" wx:key="*this" class="choice {{filters.category === item ? 'active' : ''}}" data-type="category" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view></scroll-view>
+      <view class="filter-label">方式</view><view class="chip-row"><view wx:for="{{eatTypes}}" wx:key="*this" class="choice {{filters.eatType === item ? 'active' : ''}}" data-type="eatType" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
+      <view class="filter-label">预算</view><view class="chip-row"><view wx:for="{{prices}}" wx:key="*this" class="choice {{filters.price === item ? 'active' : ''}}" data-type="price" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
+    </view>
+    <view wx:if="{{dish}}" class="result-card card {{rolling ? 'rolling' : ''}}">
+      <view class="candidate-count">从 {{candidates}} 道候选中选出</view>
+      <view wx:if="{{rolling}}" class="lottery">
+        <view class="lottery-orbit"></view>
+        <view class="food-emoji lottery-emoji">{{rollingDish.emoji}}</view>
+        <view class="food-name">{{rollingDish.name}}</view>
+        <view class="lottery-tip">正在为你认真挑选…</view>
+      </view>
+      <block wx:else>
+        <view class="food-emoji">{{dish.emoji}}</view><view class="food-name">{{dish.name}}</view>
+        <view class="meta">{{dish.category}} · {{dish.eatTypes[0] || '随心吃'}}</view>
+        <view class="tags"><text wx:for="{{dish.tags}}" wx:key="*this" class="pill">{{item}}</text></view>
+        <view class="facts"><view class="fact"><text class="fact-value accent">★ {{dish.scoreText}}</text><text class="fact-label">我的评分</text></view><view class="divider"></view><view class="fact"><text class="fact-value">{{dish.eatCount}} 次</text><text class="fact-label">累计吃过</text></view><view class="divider"></view><view class="fact"><text class="fact-value small">{{dish.lastEatText}}</text><text class="fact-label">最近一次</text></view></view>
+        <button class="primary-btn main-action" bindtap="confirmDish">就吃这个</button><view class="secondary-actions"><text bindtap="viewDetail">查看详情 ›</text></view>
+      </block>
+    </view>
+    <view wx:else class="no-result card"><view class="food-emoji">🥢</view><view class="food-name">没有符合条件的菜</view><view class="muted tip">试试减少筛选条件，或去菜谱添加新菜品</view><button class="ghost-btn" bindtap="clearFilters">清空条件</button></view>
+    <button class="dice-btn {{rolling ? 'disabled' : ''}}" bindtap="handlePick"><text class="dice">{{rolling ? '⏳' : '🎲'}}</text> {{rolling ? '正在选择…' : '帮我选一个'}}</button><view class="rule-tip">已自动避开最近 {{settings.recentDays}} 天吃过的菜</view>
+  </view>
+</scroll-view>

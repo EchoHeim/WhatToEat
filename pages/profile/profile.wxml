@@ -1,0 +1,23 @@
+<navigation-bar title="我的" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad profile-page">
+  <view class="profile-head">
+    <view class="avatar-wrap">
+      <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill"></image>
+      <view wx:else class="avatar-placeholder">🥢</view>
+      <view class="avatar-edit">✎</view>
+      <button class="avatar-hit" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" aria-label="更换头像"></button>
+    </view>
+    <view class="profile-info">
+      <input class="profile-name" type="nickname" value="{{nickname}}" placeholder="点击设置昵称" bindblur="nicknameChange" maxlength="20" />
+      <view class="muted profile-sub">点击头像或昵称可修改 · 云端同步</view>
+    </view>
+  </view>
+  <view class="stats card"><view><text class="stat-value">{{stats.dishes}}</text><text class="stat-label">已收录菜品</text></view><view><text class="stat-value">{{stats.monthRecords}}</text><text class="stat-label">本月记录</text></view><view><text class="stat-value accent">{{stats.average}}</text><text class="stat-label">平均评分</text></view></view>
+  <view class="favorite card"><view class="favorite-icon">🏆</view><view><view class="muted tiny">目前最喜欢</view><view class="favorite-name">{{stats.favorite}}</view></view></view>
+  <view class="section-label">随机设置</view><view class="settings card">
+    <picker range="{{recentOptions}}" value="{{recentIndex}}" bindchange="recentChange"><view class="setting-row"><view><text class="setting-name">最近吃过过滤</text><text class="setting-desc">避免连续推荐同一道菜</text></view><text class="setting-value">{{recentText}} ›</text></view></picker>
+    <view class="setting-row"><view><text class="setting-name">允许近期重复</text><text class="setting-desc">打开后忽略上方过滤天数</text></view><switch checked="{{settings.allowRepeat}}" color="#E85D3F" bindchange="repeatChange" /></view>
+    <picker range="{{meals}}" value="{{mealIndex}}" bindchange="mealChange"><view class="setting-row"><view><text class="setting-name">默认餐次</text><text class="setting-desc">首页和记录页的默认值</text></view><text class="setting-value">{{settings.defaultMeal}} ›</text></view></picker>
+  </view>
+  <view class="version">今天吃什么 · 本地体验版 1.0</view>
+</view></scroll-view>

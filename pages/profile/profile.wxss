@@ -1,0 +1,32 @@
+page { height: 100vh; display: flex; flex-direction: column; }
+.page-scroll { flex: 1; overflow: hidden; }
+.profile-page { padding-bottom: 60rpx; }
+.profile-head { display: flex; align-items: center; margin: 12rpx 0 28rpx; }
+.avatar-wrap { position: relative; width: 108rpx; height: 108rpx; margin-right: 28rpx; flex: none; }
+.avatar-image, .avatar-placeholder { display: block; width: 108rpx; height: 108rpx; border-radius: 30rpx; }
+.avatar-placeholder { display: flex; align-items: center; justify-content: center; background: #292824; color: #fff; font-size: 52rpx; }
+.avatar-edit { position: absolute; right: -8rpx; bottom: -8rpx; z-index: 1; width: 38rpx; height: 38rpx; line-height: 38rpx; text-align: center; background: #E85D3F; color: #fff; border: 4rpx solid #F7F4ED; border-radius: 50%; font-size: 20rpx; box-sizing: content-box; pointer-events: none; }
+.avatar-hit { position: absolute; top: 0; left: 0; z-index: 2; width: 108rpx; height: 108rpx; min-width: 0; margin: 0; padding: 0; opacity: 0; }
+.profile-info { flex: 1; min-width: 0; }
+.profile-name { width: 100%; height: 52rpx; line-height: 52rpx; font-size: 36rpx; font-weight: 800; }
+.profile-sub { margin-top: 8rpx; white-space: nowrap; font-size: 21rpx; }
+.stats { display: flex; padding: 30rpx 12rpx; }
+.stats > view { width: 33.3333%; flex: none; text-align: center; border-right: 1rpx solid #EDE8DE; box-sizing: border-box; }
+.stats > view:last-child { border: 0; }
+.stat-value, .stat-label { display: block; }
+.stat-value { font-size: 38rpx; font-weight: 800; }
+.stat-value.accent { color: #D99A20; }
+.stat-label { margin-top: 7rpx; color: #969289; font-size: 20rpx; }
+.favorite { display: flex; align-items: center; margin-top: 18rpx; padding: 24rpx 28rpx; }
+.favorite-icon { margin-right: 20rpx; font-size: 44rpx; }
+.tiny { font-size: 20rpx; }
+.favorite-name { margin-top: 4rpx; font-size: 29rpx; font-weight: 700; }
+.section-label { margin: 34rpx 8rpx 14rpx; color: #89857C; font-size: 23rpx; font-weight: 600; }
+.settings { padding: 0 28rpx; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; min-height: 102rpx; border-bottom: 1rpx solid #EEE9E0; }
+.setting-row:last-child { border: 0; }
+.setting-name, .setting-desc { display: block; }
+.setting-name { font-size: 27rpx; font-weight: 600; }
+.setting-desc { margin-top: 7rpx; color: #9A968D; font-size: 20rpx; }
+.setting-value { color: #969289; font-size: 24rpx; }
+.version { margin-top: 34rpx; text-align: center; color: #ACA89F; font-size: 20rpx; }

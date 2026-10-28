@@ -1,0 +1,62 @@
+<navigation-bar title="{{id ? '编辑提醒' : '新建提醒'}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad form-page">
+  <view class="intro"><view class="eyebrow">REMINDER</view><view class="page-title">什么时候提醒你？</view></view>
+
+  <view class="form-card card">
+    <view class="field">
+      <view class="label">提醒内容</view>
+      <input class="text-input" placeholder="例如：妈妈生日、交房租、每天吃药" value="{{content}}" bindinput="contentChange" maxlength="40" />
+    </view>
+
+    <view class="field">
+      <view class="label">日历</view>
+      <view class="segment">
+        <view wx:for="{{calendars}}" wx:key="value" class="seg {{calendar === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="calendarChange">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">{{calendar === 'lunar' ? '农历日期' : '日期'}}</view>
+      <picker wx:if="{{calendar === 'solar'}}" mode="date" value="{{solarDate}}" bindchange="solarDateChange"><view class="picker-value"><text>{{solarDate}}</text><text>选择 ›</text></view></picker>
+      <block wx:else>
+        <view class="two-col">
+          <picker range="{{lunarMonthLabels}}" value="{{lunarMonthIndex}}" bindchange="lunarMonthChange"><view class="small-picker">{{lunarMonthLabels[lunarMonthIndex]}} ›</view></picker>
+          <picker range="{{lunarDayLabels}}" value="{{lunarDayIndex}}" bindchange="lunarDayChange"><view class="small-picker">{{lunarDayLabels[lunarDayIndex]}} ›</view></picker>
+        </view>
+        <view class="resolve">对应公历 {{solarDate}}</view>
+      </block>
+    </view>
+
+    <view class="field">
+      <view class="label">循环方式</view>
+      <view class="chip-row">
+        <view wx:for="{{repeats}}" wx:key="value" class="chip {{repeat === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="repeatChange">{{item.label}}</view>
+      </view>
+      <view class="field-hint">{{dailyRepeat ? '每天都会提醒，无需设置提前天数' : '选择每月/每年后，会在每个周期的同一天提醒'}}</view>
+    </view>
+
+    <view wx:if="{{!dailyRepeat}}" class="field">
+      <view class="label">提前提醒</view>
+      <view class="chip-row">
+        <view wx:for="{{advanceOptions}}" wx:key="value" class="chip {{item.checked ? 'active' : ''}}" data-value="{{item.value}}" bindtap="toggleAdvance">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">提醒时间</view>
+      <picker mode="time" value="{{time}}" bindchange="timeChange"><view class="picker-value"><text>{{time}}</text><text>选择 ›</text></view></picker>
+    </view>
+
+    <view class="field no-border">
+      <view class="switch-row">
+        <view class="switch-text"><text class="label no-margin">同时发送微信提醒</text><text class="field-hint">{{pushReady ? '微信订阅一次可推送一条，收到后需再次开启' : '未配置订阅消息模板 ID，仅应用内提醒'}}</text></view>
+        <switch checked="{{wantPush}}" color="#E85D3F" bindchange="wantPushChange" />
+      </view>
+    </view>
+  </view>
+
+  <view class="preview card"><text class="preview-icon">⏰</text><text class="preview-text">{{previewText}}</text></view>
+
+  <button class="primary-btn save-btn" bindtap="save">{{id ? '保存修改' : '创建提醒'}}</button>
+  <button wx:if="{{id}}" class="ghost-btn delete-btn" bindtap="remove">删除这条提醒</button>
+</view></scroll-view>

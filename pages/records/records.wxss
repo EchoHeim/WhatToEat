@@ -1,21 +1,64 @@
-page{height:100vh;display:flex;flex-direction:column}.page-scroll{flex:1;overflow:hidden}.title-row{display:flex;justify-content:space-between;align-items:center;margin:12rpx 0 28rpx}.page-title{font-size:44rpx;font-weight:800}.count{margin-top:8rpx;font-size:24rpx}.add-btn{height:72rpx;line-height:72rpx;padding:0 25rpx;background:#E85D3F;color:#fff;border-radius:999rpx;font-size:25rpx}.calendar{padding:26rpx}.month-head{display:flex;justify-content:space-between;align-items:center;padding:0 10rpx 20rpx;font-size:42rpx}.month-title{font-size:29rpx;font-weight:700}.week-row,.day-grid{display:grid;grid-template-columns:repeat(7,1fr)}.week-row text{text-align:center;color:#A19D94;font-size:21rpx}.day{display:flex;align-items:center;flex-direction:column;height:70rpx;margin-top:12rpx;padding-top:8rpx;box-sizing:border-box;border-radius:18rpx;font-size:23rpx}.day.selected{background:#292824;color:#fff}.day-mark{margin-top:2rpx;font-size:20rpx;line-height:22rpx}.record-head{display:flex;justify-content:space-between;align-items:center;margin:30rpx 2rpx 18rpx}.record-count{margin-left:14rpx;color:#9B978E;font-size:22rpx}.clear{color:#E85D3F;font-size:23rpx}.date-group{margin-bottom:20rpx}.date-label{margin:0 0 10rpx 8rpx;color:#7C7972;font-size:23rpx}.group-card{padding:0 24rpx}.record{display:flex;align-items:center;padding:24rpx 0;border-bottom:1rpx solid #EEE9E0}.record:last-child{border:0}.meal-badge{width:74rpx;padding:10rpx 0;text-align:center;background:#F2E8DC;color:#A55B43;border-radius:14rpx;font-size:21rpx}.record-main{flex:1;min-width:0;margin-left:20rpx}.record-name{font-size:29rpx;font-weight:700}.record-note{margin-top:7rpx;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#97938A;font-size:21rpx}.record-score{color:#D99A20;font-size:24rpx;font-weight:700}.empty text{font-size:23rpx}
+page { height: 100vh; display: flex; flex-direction: column; }
+.page-scroll { flex: 1; overflow: hidden; }
 
-/* Skyline 对 CSS Grid 的支持不完整，日历固定使用 Flex 七等分。 */
-.week-row {
-  display: flex;
-  width: 100%;
+.title-row { display: flex; justify-content: space-between; align-items: center; margin: 12rpx 0 28rpx; }
+.page-title { font-size: 44rpx; font-weight: 800; }
+.count { margin-top: 8rpx; font-size: 24rpx; }
+.add-btn { height: 72rpx; line-height: 72rpx; padding: 0 25rpx; background: #E85D3F; color: #fff; border-radius: 999rpx; font-size: 25rpx; }
+
+/* ---------- 吃饭日历 ---------- */
+.calendar { padding: 26rpx; }
+.month-head { display: flex; justify-content: space-between; align-items: center; padding: 0 10rpx 20rpx; font-size: 42rpx; }
+.month-title { font-size: 29rpx; font-weight: 700; }
+.week-row, .day-grid { display: flex; width: 100%; }
+.week-row text { display: block; width: 14.2857%; flex: none; text-align: center; color: #A19D94; font-size: 21rpx; }
+.day-grid { flex-wrap: wrap; }
+.day { display: flex; align-items: center; flex-direction: column; width: 14.2857%; flex: none; height: 70rpx; margin-top: 12rpx; padding-top: 8rpx; box-sizing: border-box; border-radius: 18rpx; font-size: 23rpx; }
+.day.with-mood { background: #FFF7F1; }
+.day.selected { background: #292824; color: #fff; }
+.day-mark { margin-top: 2rpx; font-size: 20rpx; line-height: 22rpx; }
+
+/* ---------- 今天还是空白 ---------- */
+.today-hint { display: flex; align-items: center; margin-top: 22rpx; padding: 24rpx 26rpx; background: #FFF6EE; }
+.hint-emoji { flex: none; width: 76rpx; height: 76rpx; margin-right: 20rpx; line-height: 76rpx; text-align: center; background: #FFEBDA; border-radius: 24rpx; font-size: 40rpx; }
+.hint-main { flex: 1; min-width: 0; }
+.hint-title { font-size: 28rpx; font-weight: 700; }
+.hint-desc { margin-top: 6rpx; color: #8B8982; font-size: 22rpx; }
+.hint-action { flex: none; margin-left: 16rpx; padding: 10rpx 24rpx; background: #E85D3F; color: #fff; border-radius: 999rpx; font-size: 23rpx; font-weight: 600; }
+
+/* ---------- 日卡列表 ---------- */
+.record-head { display: flex; justify-content: space-between; align-items: center; margin: 30rpx 2rpx 18rpx; }
+.record-count { margin-left: 14rpx; color: #9B978E; font-size: 22rpx; }
+.clear { color: #E85D3F; font-size: 23rpx; }
+
+.day-list { display: flex; flex-direction: column; }
+.day-card { margin-bottom: 20rpx; padding: 22rpx 24rpx 8rpx; }
+.day-head { display: flex; align-items: center; }
+.day-mood {
+  flex: none; width: 76rpx; height: 76rpx; margin-right: 18rpx;
+  line-height: 76rpx; text-align: center;
+  background: #F6F2EA; border-radius: 24rpx; font-size: 38rpx; color: #C9C4BA;
 }
-.week-row text {
-  display: block;
-  width: 14.2857%;
-  flex: none;
-}
-.day-grid {
-  display: flex;
-  width: 100%;
-  flex-wrap: wrap;
-}
-.day {
-  width: 14.2857%;
-  flex: none;
-}
+.day-mood.filled { background: #FFF0E9; }
+.day-title { flex: 1; min-width: 0; }
+.day-line { display: flex; align-items: center; }
+.day-label { font-size: 28rpx; font-weight: 700; }
+.day-weekday { margin-left: 12rpx; color: #A09C93; font-size: 20rpx; }
+.day-today { margin-left: 12rpx; padding: 2rpx 12rpx; box-sizing: border-box; background: #E85D3F; color: #fff; border-radius: 999rpx; font-size: 18rpx; }
+.day-sub { margin-top: 7rpx; color: #97938A; font-size: 21rpx; }
+.day-add { flex: none; margin-left: 16rpx; padding: 10rpx 22rpx; background: #F2EEE5; color: #4E4C46; border-radius: 999rpx; font-size: 22rpx; }
+
+.day-note { margin-top: 16rpx; padding: 14rpx 18rpx; background: #FAF7F0; border-radius: 16rpx; color: #6C6961; font-size: 23rpx; line-height: 1.55; word-break: break-all; }
+
+.meal-list { margin-top: 6rpx; }
+.meal { display: flex; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid #EEE9E0; }
+.meal-list .meal:last-child { border: 0; }
+.meal-emoji { flex: none; width: 44rpx; font-size: 28rpx; }
+.meal-type { flex: none; width: 66rpx; padding: 6rpx 0; box-sizing: border-box; text-align: center; background: #F2E8DC; color: #A55B43; border-radius: 12rpx; font-size: 19rpx; }
+.meal-name { flex: 1; min-width: 0; margin-left: 16rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 27rpx; font-weight: 600; }
+.meal-score { flex: none; margin-left: 12rpx; color: #D99A20; font-size: 23rpx; font-weight: 700; }
+.meal-empty { padding: 16rpx 0 20rpx; color: #B4B0A7; font-size: 22rpx; }
+
+.empty text { font-size: 23rpx; }
+.more-row { margin: 10rpx 0 4rpx; padding: 24rpx 0; text-align: center; background: #FFFDF8; border-radius: 24rpx; color: #B94D35; font-size: 23rpx; font-weight: 600; }
+.tip-line { margin-top: 8rpx; text-align: center; color: #ACA89F; font-size: 20rpx; }

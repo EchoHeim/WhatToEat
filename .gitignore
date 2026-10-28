@@ -25,6 +25,29 @@ pnpm-debug.log*
 !.env.example
 *.local
 
+# WeChat Mini Program CI upload keys
+private.*.key
+*.private.key
+miniprogram-ci.key
+
+# Private keys, certificates and credential files
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+credentials.json
+secrets.json
+service-account*.json
+
+# Local authentication and CLI state
+.npmrc
+.yarnrc
+.pnpm-store/
+.tcb/
+.cloudbaserc.local
+
 # Editors and operating systems
 .idea/
 .vscode/
@@ -37,4 +60,6 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.orig
 ~$*

@@ -6,7 +6,11 @@
     "pages/profile/profile",
     "pages/dish-form/dish-form",
     "pages/dish-detail/dish-detail",
-    "pages/record-form/record-form"
+    "pages/record-form/record-form",
+    "pages/reminders/reminders",
+    "pages/reminder-form/reminder-form",
+    "pages/checkins/checkins",
+    "pages/checkin-form/checkin-form"
   ],
   "window": {
     "navigationBarTextStyle": "black",
@@ -33,10 +37,30 @@
     "backgroundColor": "#FFFDF8",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index", "text": "首页" },
-      { "pagePath": "pages/dishes/dishes", "text": "菜谱" },
-      { "pagePath": "pages/records/records", "text": "记录" },
-      { "pagePath": "pages/profile/profile", "text": "我的" }
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/tabbar/home.png",
+        "selectedIconPath": "images/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/dishes/dishes",
+        "text": "菜谱",
+        "iconPath": "images/tabbar/dishes.png",
+        "selectedIconPath": "images/tabbar/dishes-active.png"
+      },
+      {
+        "pagePath": "pages/records/records",
+        "text": "记录",
+        "iconPath": "images/tabbar/records.png",
+        "selectedIconPath": "images/tabbar/records-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/tabbar/mine.png",
+        "selectedIconPath": "images/tabbar/mine-active.png"
+      }
     ]
   }
 }

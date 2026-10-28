@@ -1,4 +1,5 @@
 const store = require('../../utils/store')
+const checkinLib = require('../../utils/checkin')
 
 function daysAgo(dateText) {
   if (!dateText) return '还没吃过'
@@ -14,15 +15,31 @@ Page({
     dish: null, candidates: 0, filterOpen: false, rolling: false,
     filters: { meal: '', category: '', eatType: '', price: '' },
     meals: store.MEALS, categories: store.CATEGORIES, eatTypes: store.EAT_TYPES, prices: store.PRICES,
-    filterCount: 0
+    filterCount: 0,
+    checkin: { emoji: '🌤️', checked: false, title: '今天还没签到', sub: '记一餐、记心情，十秒搞定' }
   },
   async onShow() {
     await store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
     const settings = store.getSettings()
     const filters = this.data.filters
-    this.setData({ settings, filters, filterCount: Object.values(filters).filter(Boolean).length })
+    this.setData({ settings, filters, filterCount: Object.values(filters).filter(Boolean).length, checkin: this.checkinView() })
     this.pick(false)
   },
+  /** 首页顶部的签到提示条 */
+  checkinView() {
+    const info = checkinLib.overview(store.getCheckins())
+    let sub = '记一餐、记心情，十秒搞定'
+    if (info.checkedToday) sub = `连续签到 ${info.streak} 天`
+    else if (info.streak) sub = `昨天签过 · 连续 ${info.streak} 天，别断哦`
+    else if (info.total) sub = '今天签一下，接着记'
+    return {
+      emoji: info.checkedToday ? info.todayMood.emoji : '🌤️',
+      checked: info.checkedToday,
+      title: info.checkedToday ? `今天已签到 · ${info.todayMood.label}` : '今天还没签到',
+      sub
+    }
+  },
+  openCheckins() { wx.navigateTo({ url: '/pages/checkins/checkins' }) },
   onHide() { this.stopRolling() },
   onUnload() { this.stopRolling() },
   toggleFilters() { this.setData({ filterOpen: !this.data.filterOpen }) },

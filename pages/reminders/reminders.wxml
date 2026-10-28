@@ -1,0 +1,52 @@
+<navigation-bar title="日期提醒" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad reminder-page">
+  <view class="title-row">
+    <view><view class="page-title">日期提醒</view><view class="muted count">公历 · 农历 · 循环 · 提前提醒</view></view>
+    <button class="add-btn" bindtap="addReminder">＋ 新建</button>
+  </view>
+
+  <view wx:if="{{cloudHint}}" class="cloud-hint card">
+    <text class="cloud-hint-title">云端同步未生效</text>
+    <text class="cloud-hint-body">{{cloudHint}}</text>
+    <text class="cloud-hint-foot">提醒数据目前只保存在本机，修好后重新保存一次即可同步。</text>
+  </view>
+
+  <view wx:if="{{todayCount}}" class="banner card">
+    <text class="banner-icon">🔔</text>
+    <view class="banner-body"><view class="banner-title">今天有 {{todayCount}} 条提醒</view><view class="banner-sub">{{pushQuota > 0 ? '微信推送剩余 ' + pushQuota + ' 次' : '微信推送次数已用完，收到后请再次开启'}}</view></view>
+  </view>
+
+  <view class="push card">
+    <view class="push-body">
+      <view class="push-title">微信推送</view>
+      <view class="push-sub">{{pushReady ? (pushQuota > 0 ? '剩余 ' + pushQuota + ' 次推送额度' : '订阅一次可推送一条，收到提醒后需再次开启') : '未配置订阅消息模板 ID，当前仅应用内提醒'}}</view>
+    </view>
+    <button class="ghost-btn push-btn" bindtap="enablePush">开启</button>
+  </view>
+
+  <view wx:for="{{groups}}" wx:for-item="group" wx:key="key" class="group">
+    <view class="group-head"><text class="section-title">{{group.title}}</text><text class="group-count">{{group.items.length}} 条</text></view>
+    <view class="card list-card">
+      <view wx:for="{{group.items}}" wx:for-item="item" wx:key="id" class="item {{item.enabled ? '' : 'off'}}" data-id="{{item.id}}" bindtap="editReminder" bindlongpress="removeReminder">
+        <view class="item-main">
+          <view class="item-title">{{item.content}}</view>
+          <view class="item-tags">
+            <text class="tag">{{item.calendarText}}</text>
+            <text class="tag">{{item.repeatText}}</text>
+            <text class="tag">{{item.timeText}}</text>
+          </view>
+          <view class="item-sub">{{item.eventLabel ? item.eventLabel + ' · ' : ''}}{{item.advanceText}}</view>
+        </view>
+        <view class="item-side">
+          <view class="trigger {{item.today ? 'hot' : ''}}">{{item.active ? item.dateText : '已结束'}}</view>
+          <view class="switch-wrap" catchtap="noop">
+            <switch class="mini-switch" checked="{{item.enabled}}" color="#E85D3F" data-id="{{item.id}}" bindchange="toggleReminder" />
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{!total}}" class="empty card">还没有提醒<br/><text>新建一条，支持公历和农历</text></view>
+  <view wx:else class="tip-line">轻点编辑 · 长按删除</view>
+</view></scroll-view>

@@ -10,7 +10,11 @@ Page({
     const wanted = options.dishId || ''
     const index = Math.max(0, dishes.findIndex(item => item.id === wanted))
     const chosen = dishes[index]
-    this.setData({ dishes, dishNames: dishes.map(item => item.name), dishIndex: index, dishId: chosen ? chosen.id : '', dishName: chosen ? chosen.name : '', mealType: options.meal || store.getSettings().defaultMeal || '午餐' })
+    // 从日卡「＋ 一餐」进来时带上那一天，补记历史日期也走这里
+    const todayText = today()
+    const wantedDate = options.date || ''
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(wantedDate) && wantedDate <= todayText ? wantedDate : todayText
+    this.setData({ dishes, dishNames: dishes.map(item => item.name), dishIndex: index, dishId: chosen ? chosen.id : '', dishName: chosen ? chosen.name : '', mealType: options.meal || store.getSettings().defaultMeal || '午餐', date })
   },
   dishChange(e) { const index = Number(e.detail.value); const dish = this.data.dishes[index]; this.setData({ dishIndex: index, dishId: dish.id, dishName: dish.name }) },
   dateChange(e) { this.setData({ date: e.detail.value > this.data.today ? this.data.today : e.detail.value }) },

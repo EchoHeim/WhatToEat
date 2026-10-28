@@ -1,0 +1,48 @@
+<navigation-bar title="{{id ? '编辑签到' : '每日签到'}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad form-page">
+  <view class="intro"><view class="eyebrow">CHECK IN</view><view class="page-title">{{dayLabel || '今天过得怎么样？'}}</view></view>
+
+  <view class="form-card card">
+    <view class="field">
+      <view class="label">日期</view>
+      <picker mode="date" value="{{date}}" end="{{today}}" bindchange="dateChange"><view class="picker-value"><text>{{date}}</text><text>选择 ›</text></view></picker>
+      <view wx:if="{{existing}}" class="field-hint">这一天已有签到，保存会覆盖原来的内容</view>
+    </view>
+
+    <view class="field">
+      <view class="label">今天的心情</view>
+      <view class="mood-grid">
+        <view wx:for="{{moods}}" wx:key="key" class="mood {{moodKey === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="chooseMood">
+          <text class="mood-emoji">{{item.emoji}}</text>
+          <text class="mood-label">{{item.label}}</text>
+        </view>
+      </view>
+      <view class="field-hint">选一个最接近的心情</view>
+    </view>
+
+    <view class="field">
+      <view class="label">今天吃了</view>
+      <view class="meal-summary" bindtap="addMeal">
+        <view class="meal-summary-main">
+          <text class="meal-summary-text {{mealNames ? '' : 'meal-summary-muted'}}">{{mealNames || '这一天还没有记录餐食'}}</text>
+          <text wx:if="{{mealCount}}" class="meal-summary-count">{{mealCount}} 餐</text>
+        </view>
+        <text class="meal-summary-link">{{mealCount ? '＋ 加一餐' : '去记一餐 ›'}}</text>
+      </view>
+      <view class="field-hint">饮食来自「记一餐」，这里不用重复写</view>
+    </view>
+
+    <view class="field no-border">
+      <view class="label">想说的话</view>
+      <textarea placeholder="今天的小事、心情的来源，都可以写两句" value="{{note}}" bindinput="noteChange" maxlength="200" />
+    </view>
+  </view>
+
+  <view wx:if="{{moodKey}}" class="preview card">
+    <text class="preview-icon">{{moodEmoji}}</text>
+    <text class="preview-text">{{dayLabel}} · {{moodLabel}}</text>
+  </view>
+
+  <button class="primary-btn save-btn" bindtap="save">{{existing ? '保存修改' : '完成签到'}}</button>
+  <button wx:if="{{id}}" class="ghost-btn delete-btn" bindtap="remove">删除这条签到</button>
+</view></scroll-view>

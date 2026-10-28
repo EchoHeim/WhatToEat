@@ -5,6 +5,14 @@
       <view><view class="eyebrow">FOOD DECISION</view><view class="headline">这一顿，交给运气吧</view></view>
       <view class="filter-entry" bindtap="toggleFilters"><text>筛选</text><text wx:if="{{filterCount}}" class="filter-badge">{{filterCount}}</text></view>
     </view>
+    <view class="checkin-bar" bindtap="openCheckins">
+      <text class="checkin-bar-emoji">{{checkin.emoji}}</text>
+      <view class="checkin-bar-body">
+        <text class="checkin-bar-title">{{checkin.title}}</text>
+        <text class="checkin-bar-sub">{{checkin.sub}}</text>
+      </view>
+      <text class="checkin-bar-go">{{checkin.checked ? '看记录' : '去签到'}} ›</text>
+    </view>
     <view wx:if="{{filterOpen}}" class="filter-card card">
       <view class="filter-head"><text class="section-title">限定范围</text><text class="clear" bindtap="clearFilters">清空</text></view>
       <view class="filter-label">餐次</view><view class="chip-row"><view wx:for="{{meals}}" wx:key="*this" class="choice {{filters.meal === item ? 'active' : ''}}" data-type="meal" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>

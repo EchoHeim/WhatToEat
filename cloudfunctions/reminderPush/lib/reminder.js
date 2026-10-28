@@ -12,6 +12,20 @@ const CALENDARS = [
   { value: 'lunar', label: '农历' }
 ]
 
+/**
+ * 一条「日期提醒」可以是普通提醒，也可以是纪念日。
+ * 纪念日只在日历上标个日子（紫色数字 + 当周列出），不推送、不计入「今天几条提醒」；
+ * 云函数扫描 reminders 时也要靠这个字段把它跳过去，否则会给纪念日发订阅消息。
+ * 老数据没有 kind 字段，一律按普通提醒处理。
+ */
+const KINDS = [
+  { value: 'reminder', label: '提醒' },
+  { value: 'anniversary', label: '纪念日' }
+]
+
+const KIND_REMINDER = 'reminder'
+const KIND_ANNIVERSARY = 'anniversary'
+
 const REPEATS = [
   { value: 'none', label: '不重复', hint: '只在指定日期提醒一次' },
   { value: 'daily', label: '每天', hint: '从起始日期起每天提醒' },
@@ -295,6 +309,39 @@ function relativeText(days) {
   return `${days} 天后`
 }
 
+/** 是不是纪念日（老数据没有 kind，算普通提醒） */
+function isAnniversary(reminder) {
+  return Boolean(reminder) && reminder.kind === KIND_ANNIVERSARY
+}
+
+/**
+ * 纪念日要不要推送。
+ * 纪念日默认只在日历上标个日子，不推送——只有用户显式打开「到期提醒」（notify: true）才推。
+ * 云函数与「今天几条提醒」的计数都用它判断。
+ */
+function anniversaryNotify(reminder) {
+  return isAnniversary(reminder) && reminder.enabled !== false && reminder.notify === true
+}
+
+/**
+ * 纪念日落在哪一天：公历按「每年同月日」，农历按「农历同月日」（农历本来就年年有）。
+ * 纪念日一律每年纪念，没有「仅一次」这回事——要只记一次请建普通提醒。
+ */
+function anniversaryHit(reminder, dateText) {
+  if (!isAnniversary(reminder) || !isDateText(dateText)) return false
+  if (reminder.enabled === false) return false
+  const date = String(reminder.date || '')
+  if (!isDateText(date)) return false
+  if (reminder.calendar === 'lunar') {
+    const info = reminder.lunar
+    if (!info) return false
+    const target = lunar.fromDateText(dateText)
+    if (!target) return false
+    return target.month === Number(info.month) && target.day === Number(info.day) && Boolean(target.isLeap) === Boolean(info.isLeap)
+  }
+  return date.slice(5) === dateText.slice(5)
+}
+
 /** 列表页用的展示模型 */
 function describe(reminder, fromDate) {
   const start = isDateText(fromDate) ? fromDate : today()
@@ -319,6 +366,9 @@ function describe(reminder, fromDate) {
 
 module.exports = {
   CALENDARS,
+  KINDS,
+  KIND_REMINDER,
+  KIND_ANNIVERSARY,
   REPEATS,
   ADVANCE_OPTIONS,
   MAX_ADVANCE,
@@ -343,5 +393,8 @@ module.exports = {
   nextTrigger,
   nextOccurrence,
   relativeText,
-  describe
+  describe,
+  isAnniversary,
+  anniversaryNotify,
+  anniversaryHit
 }

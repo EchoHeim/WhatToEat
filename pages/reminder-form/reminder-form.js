@@ -13,6 +13,8 @@ Page({
   data: {
     id: '',
     content: '',
+    kinds: reminderLib.KINDS,
+    kind: reminderLib.KIND_REMINDER,
     calendars: reminderLib.CALENDARS,
     calendar: 'solar',
     solarDate: '',
@@ -32,15 +34,20 @@ Page({
     time: reminderLib.DEFAULT_TIME,
     pushReady: false,
     wantPush: true,
+    notify: false,
     previewText: ''
   },
   onLoad(options) {
     const today = reminderLib.today()
     const reminder = options && options.id ? store.getReminder(options.id) : null
+    const kind = reminder && reminder.kind === reminderLib.KIND_ANNIVERSARY ? reminderLib.KIND_ANNIVERSARY : reminderLib.KIND_REMINDER
     const calendar = reminder && reminder.calendar === 'lunar' ? 'lunar' : 'solar'
     const solarDate = reminder && reminder.date ? reminder.date : today
-    const repeat = reminder && reminder.repeat ? reminder.repeat : 'none'
+    // 纪念日一律「每年」，公历按同月日、农历按农历同月日
+    const repeat = kind === reminderLib.KIND_ANNIVERSARY ? 'yearly' : (reminder && reminder.repeat ? reminder.repeat : 'none')
     const advanceDays = reminder ? reminderLib.advanceList(reminder) : [0]
+    // 纪念日默认不推送，开了「到期提醒」才推
+    const notify = reminder ? Boolean(reminder.notify) : false
     const seed = calendar === 'lunar' && reminder && reminder.lunar
       ? { year: reminder.lunar.year, month: reminder.lunar.month, day: reminder.lunar.day, isLeap: reminder.lunar.isLeap }
       : this.lunarFromSolar(solarDate)
@@ -52,11 +59,13 @@ Page({
     this.setData({
       id: reminder ? reminder.id : '',
       content: reminder ? reminder.content : '',
+      kind,
       calendar,
       today,
       repeat,
       advanceDays,
       time: reminder && reminder.time ? reminder.time : reminderLib.DEFAULT_TIME,
+      notify,
       pushReady: subscribe.configured(),
       ...lunarState
     }, () => this.refreshDerived())
@@ -120,6 +129,14 @@ Page({
   },
 
   // ---------- 表单交互 ----------
+  kindChange(e) {
+    const kind = e.currentTarget.dataset.value
+    if (kind === this.data.kind) return
+    // 纪念日是「每年」的，切过去就把循环固定成 yearly
+    this.setData({ kind, repeat: kind === reminderLib.KIND_ANNIVERSARY ? 'yearly' : this.data.repeat }, () => this.refreshDerived())
+  },
+  /** 纪念日的「到期提醒」开关：关掉就只在日历上标个日子 */
+  notifyChange(e) { this.setData({ notify: e.detail.value }, () => this.refreshDerived()) },
   contentChange(e) { this.setData({ content: e.detail.value }, () => this.refreshDerived()) },
   wantPushChange(e) { this.setData({ wantPush: e.detail.value }) },
   timeChange(e) { this.setData({ time: e.detail.value }) },
@@ -176,63 +193,75 @@ Page({
 
   // ---------- 派生状态与保存 ----------
   buildPayload() {
-    const daily = this.data.repeat === 'daily'
+    const anniversary = this.data.kind === reminderLib.KIND_ANNIVERSARY
+    const daily = !anniversary && this.data.repeat === 'daily'
     const slot = this.data.lunarMonthOptions[this.data.lunarMonthIndex] || { month: 1, isLeap: false }
     const option = this.data.lunarDayOptions[this.data.lunarDayIndex] || { value: 1 }
     const advanceDays = daily || !this.data.advanceDays.length ? [0] : [...this.data.advanceDays].sort((a, b) => a - b)
     const payload = {
       content: this.data.content.trim(),
+      kind: anniversary ? reminderLib.KIND_ANNIVERSARY : reminderLib.KIND_REMINDER,
       calendar: this.data.calendar,
-      repeat: this.data.repeat,
+      repeat: anniversary ? 'yearly' : this.data.repeat,
       time: this.data.time,
       date: this.data.solarDate,
-      advanceDays,
+      advanceDays: anniversary && !this.data.notify ? [0] : advanceDays,
       lunar: this.data.calendar === 'lunar'
         ? { year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: Boolean(slot.isLeap) }
         : null
     }
+    // 只有纪念日才有 notify 这个开关，普通提醒别把 undefined 写进去
+    if (anniversary) payload.notify = this.data.notify
     if (this.data.id) payload.id = this.data.id
     return payload
   },
   refreshDerived() {
-    const daily = this.data.repeat === 'daily'
+    const anniversary = this.data.kind === reminderLib.KIND_ANNIVERSARY
+    const daily = !anniversary && this.data.repeat === 'daily'
     const advanceDays = daily ? [0] : this.data.advanceDays
     const advanceOptions = reminderLib.ADVANCE_OPTIONS.map(item => ({ ...item, checked: advanceDays.includes(item.value) }))
     const draft = this.buildPayload()
+    const next = reminderLib.nextOccurrence({ ...draft, enabled: true }, this.data.today)
+    const previewText = anniversary
+      ? this.describeAnniversary(draft, next)
+      : this.describeReminder(draft)
+    this.setData({ dailyRepeat: daily, advanceDays, advanceOptions, previewText })
+  },
+  describeAnniversary(draft, next) {
+    if (!next) return '这个日期算不出来，换一个日期吧'
+    const when = reminderLib.relativeText(reminderLib.diffDays(this.data.today, next))
+    if (!this.data.notify) return `每年都有 · 下一次 ${next}（${when}）· 不推送，只在日历上标紫`
     const view = reminderLib.describe({ ...draft, enabled: true }, this.data.today)
-    this.setData({
-      dailyRepeat: daily,
-      advanceDays,
-      advanceOptions,
-      previewText: view.active
-        ? `下次提醒 ${view.triggerText} · 事件日 ${view.eventLabel || view.occurrence}`
-        : '这个日期已经过去了，换一个日期吧'
-    })
+    return `每年都有 · 下一次 ${next}（${when}）· ${view.timeText} 提醒（${reminderLib.advanceText(draft)}）`
+  },
+  describeReminder(draft) {
+    const view = reminderLib.describe({ ...draft, enabled: true }, this.data.today)
+    return view.active
+      ? `下次提醒 ${view.triggerText} · 事件日 ${view.eventLabel || view.occurrence}`
+      : '这个日期已经过去了，换一个日期吧'
   },
   async save() {
     const payload = this.buildPayload()
+    const anniversary = this.data.kind === reminderLib.KIND_ANNIVERSARY
     if (!payload.content) {
-      wx.showToast({ title: '请填写提醒内容', icon: 'none' })
+      wx.showToast({ title: anniversary ? '请填写纪念日名称' : '请填写提醒内容', icon: 'none' })
       return
     }
     wx.showLoading({ title: '保存中' })
     try {
       await store.saveReminder(payload)
     } catch (error) {
+      // 云端写失败已经由全局提示接管（数据在本机，下次同步补传），
+      // 走到这里说明是本机写入出了问题
       console.error(error)
       wx.hideLoading()
-      // 本地缓存已经写入，这里把云端出错的原因直接讲清楚，便于修复配置
-      wx.showModal({
-        title: '已保存到本机',
-        content: `${store.describeCloudError(error)}\n\n本机数据不会丢失，修好云端配置后重新保存即可同步。`,
-        showCancel: false,
-        confirmText: '知道了',
-        success: () => wx.navigateBack()
-      })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
       return
     }
     wx.hideLoading()
-    const pushRequested = this.data.wantPush && subscribe.configured()
+    // 纪念日只有开了「到期提醒」才需要订阅授权；普通提醒沿用那个微信推送开关
+    const wantPush = anniversary ? this.data.notify : this.data.wantPush
+    const pushRequested = wantPush && subscribe.configured()
     if (pushRequested) {
       try {
         if (await subscribe.requestSubscribe()) await store.addPushQuota(1)
@@ -240,12 +269,12 @@ Page({
         console.error('订阅授权失败', error)
       }
     }
-    wx.showToast({ title: pushRequested ? '提醒已保存' : '已保存为应用内提醒' })
+    wx.showToast({ title: anniversary ? '纪念日已保存' : (pushRequested ? '提醒已保存' : '已保存为应用内提醒') })
     setTimeout(() => wx.navigateBack(), 650)
   },
   remove() {
     wx.showModal({
-      title: '删除这条提醒？',
+      title: this.data.kind === reminderLib.KIND_ANNIVERSARY ? '删除这个纪念日？' : '删除这条提醒？',
       confirmColor: '#C84832',
       success: async res => {
         if (!res.confirm) return
@@ -253,7 +282,7 @@ Page({
           await store.deleteReminder(this.data.id)
         } catch (error) {
           console.error(error)
-          wx.showToast({ title: '本地已删除，云同步失败', icon: 'none' })
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
         }
         setTimeout(() => wx.navigateBack(), 400)
       }

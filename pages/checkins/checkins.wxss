@@ -2,19 +2,19 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .page-scroll { flex: 1; overflow: hidden; }
 .checkin-page { padding-bottom: 60rpx; }
 
-.title-row { display: flex; justify-content: space-between; align-items: center; margin: 12rpx 0 28rpx; }
-.page-title { font-size: 44rpx; font-weight: 800; }
-.count { margin-top: 8rpx; font-size: 24rpx; }
-.add-btn { height: 72rpx; line-height: 72rpx; padding: 0 25rpx; background: #E85D3F; color: #fff; border-radius: 999rpx; font-size: 25rpx; }
+/* 顶部：每进一次随机换一句古诗词，上面配一个随机的草木鸟兽标记，纯展示，不给点击 */
+.quote { display: flex; flex-direction: column; align-items: center; padding: 10rpx 20rpx 34rpx; }
+.quote-mark { margin-bottom: 12rpx; font-size: 40rpx; line-height: 1; }
+.quote-text { text-align: center; color: #7E7A72; font-size: 28rpx; line-height: 1.7; letter-spacing: 2rpx; }
 
 .today-card { display: flex; align-items: center; padding: 30rpx 28rpx; }
 .today-card.pending { background: #FFF6EE; }
-.today-mood { flex: none; width: 96rpx; height: 96rpx; margin-right: 22rpx; line-height: 96rpx; text-align: center; background: #F5F1E9; border-radius: 30rpx; font-size: 52rpx; }
+.today-mood { display: flex; align-items: center; justify-content: center; flex: none; width: 96rpx; height: 96rpx; margin-right: 22rpx; background: #F5F1E9; border-radius: 30rpx; font-size: 52rpx; }
+.today-mood-img { width: 78rpx; height: 78rpx; }
 .today-card.pending .today-mood { background: #FFEBDA; }
 .today-main { flex: 1; min-width: 0; }
 .today-title { font-size: 30rpx; font-weight: 700; }
 .today-diet { margin-top: 8rpx; color: #6C6961; font-size: 24rpx; line-height: 1.5; word-break: break-all; }
-.today-note { margin-top: 6rpx; color: #9A968D; font-size: 22rpx; line-height: 1.5; word-break: break-all; }
 .today-action { flex: none; margin-left: 20rpx; padding: 12rpx 26rpx; background: #F2EEE5; color: #4E4C46; border-radius: 999rpx; font-size: 24rpx; }
 .today-action.active { background: #E85D3F; color: #fff; font-weight: 600; }
 
@@ -33,13 +33,14 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .strip-day { display: flex; flex-direction: column; align-items: center; width: 14.2857%; flex: none; padding: 10rpx 0; box-sizing: border-box; border-radius: 16rpx; }
 .strip-day.on { background: #F6F2EA; }
 .strip-day.today { background: #FFF0E9; }
+.strip-icon { width: 36rpx; height: 36rpx; }
 .strip-emoji { font-size: 30rpx; line-height: 36rpx; color: #C9C4BA; }
 .strip-num { margin-top: 4rpx; color: #A09C93; font-size: 19rpx; }
 .strip-day.on .strip-num { color: #6C6961; }
 
 .tally { padding: 10rpx 26rpx; }
 .tally-row { display: flex; align-items: center; padding: 14rpx 0; }
-.tally-emoji { width: 48rpx; flex: none; font-size: 32rpx; }
+.tally-icon { width: 44rpx; height: 44rpx; flex: none; }
 .tally-label { width: 90rpx; flex: none; color: #4E4C46; font-size: 23rpx; }
 .tally-bar { flex: 1; height: 14rpx; margin: 0 16rpx; background: #F2EEE5; border-radius: 999rpx; overflow: hidden; }
 .tally-fill { height: 14rpx; background: #E8A52A; border-radius: 999rpx; }
@@ -48,15 +49,14 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .list-card { padding: 0 26rpx; }
 .item { display: flex; align-items: flex-start; padding: 26rpx 0; border-bottom: 1rpx solid #EEE9E0; }
 .item:last-child { border: 0; }
-.item-mood { flex: none; width: 72rpx; height: 72rpx; margin-right: 20rpx; line-height: 72rpx; text-align: center; background: #F6F2EA; border-radius: 22rpx; font-size: 38rpx; }
+.item-mood { display: flex; align-items: center; justify-content: center; flex: none; width: 72rpx; height: 72rpx; margin-right: 20rpx; background: #F6F2EA; border-radius: 22rpx; }
+.item-mood-img { width: 60rpx; height: 60rpx; }
 .item-main { flex: 1; min-width: 0; }
 .item-head { display: flex; align-items: center; }
 .item-date { font-size: 28rpx; font-weight: 700; }
 .item-weekday { margin-left: 12rpx; color: #A09C93; font-size: 20rpx; }
 .item-today { margin-left: 12rpx; padding: 2rpx 12rpx; box-sizing: border-box; background: #E85D3F; color: #fff; border-radius: 999rpx; font-size: 18rpx; }
-.item-diet { margin-top: 8rpx; color: #4E4C46; font-size: 24rpx; line-height: 1.5; word-break: break-all; }
-.item-note { margin-top: 6rpx; color: #9A968D; font-size: 21rpx; line-height: 1.5; word-break: break-all; }
+.item-note { margin-top: 8rpx; color: #4E4C46; font-size: 24rpx; line-height: 1.5; word-break: break-all; }
 .item-mood-label { flex: none; margin-left: 16rpx; color: #8B8982; font-size: 21rpx; }
 
 .empty text { font-size: 23rpx; }
-.tip-line { margin-top: 26rpx; text-align: center; color: #ACA89F; font-size: 20rpx; }

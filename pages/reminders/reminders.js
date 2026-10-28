@@ -3,6 +3,7 @@ const reminderLib = require('../../utils/reminder')
 const subscribe = require('../../utils/subscribe')
 
 const GROUP_DEFS = [
+  { key: 'anniversary', title: '纪念日', hint: '日历上标成紫色' },
   { key: 'today', title: '今天', hint: '到点啦' },
   { key: 'soon', title: '未来 7 天', hint: '' },
   { key: 'later', title: '更远', hint: '' },
@@ -35,7 +36,30 @@ Page({
   refresh() {
     const todayText = reminderLib.today()
     const settings = store.getSettings()
-    const views = store.getReminders().map(item => {
+    const all = store.getReminders()
+    // 纪念日不是在「某天推送」，而是在日历上标个日子，单独成组，别混进今天/未来 7 天
+    const anniversaryViews = all.filter(reminderLib.isAnniversary).map(item => {
+      const next = reminderLib.nextOccurrence(item, todayText)
+      const days = next ? reminderLib.diffDays(todayText, next) : null
+      return {
+        id: item.id,
+        content: item.content,
+        enabled: item.enabled !== false,
+        calendarText: reminderLib.calendarLabel(item.calendar),
+        repeatText: '每年',
+        timeText: reminderLib.anniversaryNotify(item) ? reminderLib.advanceText(item) : '不推送',
+        advanceText: reminderLib.anniversaryNotify(item)
+          ? `${item.time || reminderLib.DEFAULT_TIME} 提醒`
+          : '只在日历上标记 · 数字变紫',
+        eventLabel: next || '',
+        dateText: days === null ? '已结束' : reminderLib.relativeText(days),
+        triggerText: '',
+        active: true,
+        today: days === 0,
+        days: days === null ? 99999 : days
+      }
+    })
+    const views = all.filter(item => !reminderLib.isAnniversary(item)).map(item => {
       const view = reminderLib.describe(item, todayText)
       return {
         id: item.id,
@@ -54,18 +78,19 @@ Page({
       }
     })
     const groups = GROUP_DEFS.map(def => ({ ...def, items: [] }))
+    groups[0].items = anniversaryViews
     views.forEach(item => {
-      if (!item.active) groups[3].items.push(item)
-      else if (item.days <= 0) groups[0].items.push(item)
-      else if (item.days <= 7) groups[1].items.push(item)
-      else groups[2].items.push(item)
+      if (!item.active) groups[4].items.push(item)
+      else if (item.days <= 0) groups[1].items.push(item)
+      else if (item.days <= 7) groups[2].items.push(item)
+      else groups[3].items.push(item)
     })
     groups.forEach(group => group.items.sort((a, b) => a.days - b.days))
     this.setData({
       todayText,
       groups: groups.filter(group => group.items.length),
-      todayCount: groups[0].items.length,
-      total: views.length,
+      todayCount: groups[1].items.length,
+      total: views.length + anniversaryViews.length,
       pushReady: subscribe.configured(),
       pushQuota: Number(settings.pushQuota || 0),
       loading: false
@@ -80,7 +105,7 @@ Page({
       await store.toggleReminder(id, e.detail.value)
     } catch (error) {
       console.error(error)
-      wx.showToast({ title: '本地已保存，云同步失败', icon: 'none' })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
     }
     this.refresh()
   },
@@ -95,7 +120,7 @@ Page({
           await store.deleteReminder(id)
         } catch (error) {
           console.error(error)
-          wx.showToast({ title: '本地已删除，云同步失败', icon: 'none' })
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
         }
         this.refresh()
       }

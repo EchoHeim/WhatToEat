@@ -8,6 +8,8 @@ node_modules/
 miniprogram_npm/
 cloudfunctions/**/node_modules/
 
+preview/
+
 # Build, test and cache output
 dist/
 build/
@@ -63,3 +65,14 @@ Desktop.ini
 *.bak
 *.orig
 ~$*
+
+# Local agent workspace: memory logs are tracked, the rest stays local
+# (icon scripts and their source images, screenshots)
+# tests/ 是要进仓库的：7 套回归测试，README 里写了怎么跑
+.workbuddy/*
+!.workbuddy/memory/
+
+# WeChat code package and upload artifacts
+*.zip
+*.wxapkg
+up.json

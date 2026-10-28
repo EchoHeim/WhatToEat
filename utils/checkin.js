@@ -4,20 +4,41 @@
  * 小程序端（pages/checkins、pages/checkin-form、pages/records、pages/index）与统计口径共用这一份。
  */
 
-/** 可选心情图标，3x3 展示 */
+/** 可选心情图标，签到页按这个顺序 4x4 铺 16 格 */
 const MOODS = [
-  { key: 'joyful', emoji: '😄', label: '开心' },
-  { key: 'excited', emoji: '🥳', label: '兴奋' },
-  { key: 'satisfied', emoji: '😋', label: '满足' },
-  { key: 'cozy', emoji: '😌', label: '惬意' },
-  { key: 'plain', emoji: '😐', label: '平淡' },
-  { key: 'tired', emoji: '😪', label: '疲惫' },
-  { key: 'down', emoji: '😕', label: '低落' },
-  { key: 'busy', emoji: '🤯', label: '忙乱' },
-  { key: 'craving', emoji: '🤤', label: '嘴馋' }
+  { key: 'ashamed', emoji: '😳', label: '羞愧', icon: '/images/moods/ashamed.png' },
+  { key: 'disgusted', emoji: '🤢', label: '厌恶', icon: '/images/moods/disgusted.png' },
+  { key: 'proud', emoji: '😎', label: '自豪', icon: '/images/moods/proud.png' },
+  { key: 'craving', emoji: '🤤', label: '嘴馋', icon: '/images/moods/craving.png' },
+  { key: 'jealous', emoji: '😒', label: '嫉妒', icon: '/images/moods/jealous.png' },
+  { key: 'angry', emoji: '😠', label: '愤怒', icon: '/images/moods/angry.png' },
+  { key: 'happy', emoji: '😄', label: '高兴', icon: '/images/moods/happy.png' },
+  { key: 'lonely', emoji: '🥺', label: '孤独', icon: '/images/moods/lonely.png' },
+  { key: 'anxious', emoji: '😰', label: '焦虑', icon: '/images/moods/anxious.png' },
+  { key: 'satisfied', emoji: '😋', label: '满足', icon: '/images/moods/satisfied.png' },
+  { key: 'confused', emoji: '😕', label: '迷茫', icon: '/images/moods/confused.png' },
+  { key: 'unwell', emoji: '😣', label: '难受', icon: '/images/moods/unwell.png' },
+  { key: 'tired', emoji: '😪', label: '疲惫', icon: '/images/moods/tired.png' },
+  { key: 'calm', emoji: '😊', label: '平静', icon: '/images/moods/calm.png' },
+  { key: 'expectant', emoji: '🤩', label: '期待', icon: '/images/moods/expectant.png' },
+  { key: 'cozy', emoji: '😌', label: '惬意', icon: '/images/moods/cozy.png' }
 ]
 
-const DEFAULT_MOOD = MOODS[0]
+/**
+ * 旧心情 key → 新 key。老记录的 moodKey 还是旧的那套（joyful / plain / down ...），
+ * 不映射的话 normalizeMood 会全兜底成默认心情，历史签到一夜之间变成同一个表情。
+ */
+const LEGACY_KEYS = {
+  joyful: 'happy',
+  excited: 'expectant',
+  plain: 'calm',
+  down: 'unwell',
+  busy: 'anxious',
+  sleepy: 'confused'
+}
+
+/** 兜底心情：历史数据缺字段 / key 认不出来时用「平静」，比列表第一个（羞愧）中性得多 */
+const DEFAULT_MOOD = MOODS.find(item => item.key === 'calm')
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 /** 连续签到回溯上限，防止异常数据造成死循环 */
 const STREAK_GUARD = 3660
@@ -65,7 +86,8 @@ function monthPrefix(dateText) {
 }
 
 function moodByKey(key) {
-  return MOODS.find(item => item.key === key) || null
+  const normalized = LEGACY_KEYS[key] || key
+  return MOODS.find(item => item.key === normalized) || null
 }
 
 /** 兜底成可渲染的心情对象，避免历史数据缺字段时页面空白 */
@@ -125,6 +147,7 @@ function buildStrip(checkins, endDate, days) {
       weekday: weekdayText(date),
       checked: Boolean(record),
       emoji: mood ? mood.emoji : '',
+      icon: mood ? mood.icon : '',
       isToday: date === end
     })
   }
@@ -182,6 +205,7 @@ function overview(checkins, fromDate) {
 
 module.exports = {
   MOODS,
+  LEGACY_KEYS,
   DEFAULT_MOOD,
   WEEKDAYS,
   pad,

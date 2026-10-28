@@ -1,6 +1,8 @@
 const store = require('../../utils/store')
 
 function today() { const d = new Date(); const pad = n => `${n}`.padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+/** 新增时的默认时间：就是现在 */
+function nowClock() { const d = new Date(); return `${`${d.getHours()}`.padStart(2, '0')}:${`${d.getMinutes()}`.padStart(2, '0')}` }
 
 /** 选择面板一次最多平铺几道菜，再多就让用户搜，避免把表单顶到屏幕外 */
 const SHEET_PAGE_SIZE = 8
@@ -33,6 +35,7 @@ Page({
     dishMatchTotal: 0,
     date: today(),
     today: today(),
+    time: nowClock(),
     mealType: '午餐',
     meals: store.MEALS,
     score: 4,
@@ -66,6 +69,8 @@ Page({
       dishMatchTotal: dishes.length,
       mealType: (editing && editing.mealType) || query.meal || store.getSettings().defaultMeal || '午餐',
       date,
+      // 编辑老记录时按它原本的时间回填，没有 time 字段就从 createdAt 推
+      time: store.recordClock(editing) || nowClock(),
       score: Number.isFinite(editScore) && editScore > 0 ? editScore : 4,
       status: (editing && editing.status) || '还不错',
       remark: (editing && editing.remark) || ''
@@ -118,6 +123,7 @@ Page({
     wx.navigateTo({ url: `/pages/dish-form/dish-form?${query.join('&')}` })
   },
   dateChange(e) { this.setData({ date: e.detail.value > this.data.today ? this.data.today : e.detail.value }) },
+  timeChange(e) { this.setData({ time: store.normalizeClock(e.detail.value) || this.data.time }) },
   chooseMeal(e) { this.setData({ mealType: e.currentTarget.dataset.value }) },
   scoreChange(e) { this.setData({ score: e.detail.value }) },
   chooseStatus(e) { this.setData({ status: e.currentTarget.dataset.value }) },
@@ -127,13 +133,13 @@ Page({
     if (this.data.date > this.data.today) return wx.showToast({ title: '不能记录未来日期', icon: 'none' })
     wx.showLoading({ title: '保存中' })
     try {
-      const payload = { dishId: this.data.dishId, dishName: this.data.dishName, date: this.data.date, mealType: this.data.mealType, score: this.data.score, status: this.data.status, remark: this.data.remark.trim() }
+      const payload = { dishId: this.data.dishId, dishName: this.data.dishName, date: this.data.date, time: this.data.time, mealType: this.data.mealType, score: this.data.score, status: this.data.status, remark: this.data.remark.trim() }
       if (this.data.id) payload.id = this.data.id
       await store.saveRecord(payload)
       wx.showToast({ title: this.data.id ? '改好了' : '这一餐记下啦' })
     } catch (error) {
       console.error(error)
-      wx.showToast({ title: '本地已保存，云同步失败', icon: 'none' })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
     } finally {
       wx.hideLoading()
     }

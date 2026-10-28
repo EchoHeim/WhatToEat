@@ -1,5 +1,7 @@
 const store = require('../../utils/store')
 const checkinLib = require('../../utils/checkin')
+const festivalLib = require('../../utils/festival')
+const tabbar = require('../../utils/tabbar')
 const pad = n => `${n}`.padStart(2, '0')
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -20,11 +22,15 @@ Page({
     cells: [],
     days: [],
     monthCount: 0,
-    moodCount: 0,
     todayEmpty: false,
+    hintDate: '',
+    festivals: [],
+    festivalTitle: '',
     canPrev: true,
-    canNext: false
+    canNext: false,
+    tabbar: tabbar.create(2)
   },
+  onTabTap(e) { tabbar.go(e) },
   onLoad() {
     const now = new Date()
     this.year = now.getFullYear()
@@ -46,6 +52,10 @@ Page({
   refresh() {
     const records = store.getRecords()
     const checkins = store.getCheckins()
+    const reminders = store.getReminders()
+    // 菜库建一次索引：日历格和日卡里都要按 dishId 取菜，
+    // 直接调 store.getDish() 会把整份菜库反序列化 + 线性查一遍（一次刷新上百次）
+    const dishMap = new Map(store.getDishes().map(item => [item.id, item]))
     const todayText = checkinLib.today()
     const mealsByDate = {}
     records.forEach(item => {
@@ -70,13 +80,18 @@ Page({
       const meals = mealsByDate[date] || []
       const checkin = checkinByDate[date]
       const mood = checkin ? checkinLib.normalizeMood(checkin.mood, checkin.moodKey) : null
-      const dish = meals.length ? store.getDish(meals[0].dishId) || {} : {}
+      const dish = meals.length ? dishMap.get(meals[0].dishId) || {} : {}
       cells.push({
         key: date,
         day,
         date,
         mark: mood ? mood.emoji : dish.emoji || (meals.length ? '●' : ''),
+        moodIcon: mood ? mood.icon : '',
         hasMood: Boolean(mood),
+        // 节日当天：数字变亮蓝。日历是回顾用的，这个月已过的节日也照样标
+        hasFestival: festivalLib.festivalsOf(date).length > 0,
+        // 自定义纪念日：数字变亮紫，同一天既有节日又有纪念日时紫色赢
+        hasAnniversary: festivalLib.anniversariesOn(reminders, date).length > 0,
         count: meals.length,
         isToday: date === todayText,
         future: date > todayText
@@ -88,16 +103,19 @@ Page({
     const dates = datePool.filter((date, index) => datePool.indexOf(date) === index && inScope(date))
     const days = dates.sort((a, b) => b.localeCompare(a)).map(date => {
       const meals = (mealsByDate[date] || []).map(item => {
-        const dish = store.getDish(item.dishId) || {}
+        const dish = dishMap.get(item.dishId) || {}
         return {
           id: item.id,
           mealType: item.mealType,
+          timeText: store.recordClock(item),
           dishName: item.dishName,
           emoji: dish.emoji || '🍽',
           score: item.score,
           noteText: item.remark ? `${item.status} · ${item.remark}` : item.status
         }
       })
+      // 有具体时间之后，一天里按时间先后排更像时间线；没有时间的排最后
+      meals.sort((a, b) => (a.timeText || '99:99').localeCompare(b.timeText || '99:99'))
       const checkin = checkinByDate[date]
       const mood = checkin ? checkinLib.normalizeMood(checkin.mood, checkin.moodKey) : null
       return {
@@ -106,6 +124,7 @@ Page({
         weekday: weekdayOf(date),
         isToday: date === todayText,
         moodEmoji: mood ? mood.emoji : '',
+        moodIcon: mood ? mood.icon : '',
         moodLabel: mood ? mood.label : '',
         note: checkin && checkin.note ? checkin.note : '',
         meals,
@@ -114,13 +133,30 @@ Page({
     })
 
     const currentIndex = monthIndex(this.year, this.month)
+    // 「今天还是空白」只在看当月、且没选中某一天时才出现：
+    // 翻历史月或筛了某天后，它夹在一堆别的日期卡片里，会被误读成在说那些卡片
+    const viewingTodayMonth = !selected && monthPrefix === todayText.slice(0, 7)
+    // 挑了某天 → 显示那一天的节日与纪念日；没挑 → 显示本周剩下的；翻到历史月且不挑日子就不挂
+    // 注意别叫 days：日卡列表已经占用了这个名字
+    const festivalDays = selected
+      ? festivalLib.daysToShow(reminders, todayText, { date: selected })
+      : viewingTodayMonth
+        ? festivalLib.daysToShow(reminders, todayText, { limit: 3 })
+        : []
+    const title = selected
+      ? `${Number(selected.slice(5, 7))} 月 ${Number(selected.slice(8, 10))} 日这天`
+      : festivalLib.hasAnniversary(festivalDays)
+        ? (festivalDays.every(item => item.kind === 'anniv') ? '本周纪念日' : '本周节日 · 纪念日')
+        : '本周节日'
     this.setData({
       monthTitle: `${this.year} 年 ${this.month} 月`,
       cells,
       days,
       monthCount: days.reduce((sum, item) => sum + item.mealCount, 0),
-      moodCount: days.filter(item => item.moodEmoji).length,
-      todayEmpty: !(mealsByDate[todayText] || []).length && !checkinByDate[todayText],
+      todayEmpty: viewingTodayMonth && !(mealsByDate[todayText] || []).length && !checkinByDate[todayText],
+      hintDate: `${Number(todayText.slice(5, 7))} 月 ${Number(todayText.slice(8, 10))} 日`,
+      festivals: festivalDays,
+      festivalTitle: title,
       canPrev: currentIndex > this.earliestMonthIndex,
       canNext: currentIndex < this.currentMonthIndex
     })
@@ -160,8 +196,6 @@ Page({
   },
   addToday() { wx.navigateTo({ url: `/pages/record-form/record-form?date=${checkinLib.today()}` }) },
   openTodayCheckin() { wx.navigateTo({ url: `/pages/checkin-form/checkin-form?date=${checkinLib.today()}` }) },
-  /** 连续天数、本月心情分布与心情历史都在这个页里 */
-  openCheckins() { wx.navigateTo({ url: '/pages/checkins/checkins' }) },
   /** 点某一餐 → 改评分 / 备注 / 日期 / 菜品 */
   editRecord(e) {
     const id = e.currentTarget.dataset.id
@@ -178,7 +212,7 @@ Page({
           await store.deleteRecord(e.currentTarget.dataset.id)
         } catch (error) {
           console.error(error)
-          wx.showToast({ title: '云同步失败', icon: 'none' })
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
         }
         this.refresh()
       }

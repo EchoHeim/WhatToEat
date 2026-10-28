@@ -1,7 +1,9 @@
 const store = require('../../utils/store')
+const tabbar = require('../../utils/tabbar')
 
 Page({
-  data: { recentOptions: [0, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', appVersion: 'Ver0.0.4' },
+  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', appVersion: 'Ver0.0.7', tabbar: tabbar.create(3) },
+  onTabTap(e) { tabbar.go(e) },
   onShow() {
     this.refresh()
     store.syncFromCloud()
@@ -24,7 +26,7 @@ Page({
       avatarUrl: settings.avatarFileId || '',
       reminderBadge: todayReminders,
       reminderText,
-      recentText: settings.recentDays ? `${settings.recentDays} 天` : '不过滤',
+      recentText: `${settings.recentDays} 天`,
       recentIndex: Math.max(0, this.data.recentOptions.indexOf(Number(settings.recentDays))),
       mealIndex: Math.max(0, store.MEALS.indexOf(settings.defaultMeal)),
       stats: { dishes: dishes.length, monthRecords: records.filter(item => item.date.startsWith(monthPrefix)).length, favorite: favorite ? favorite.name : '暂无', average: scored.length ? (scored.reduce((sum, item) => sum + Number(item.score), 0) / scored.length).toFixed(1) : '—' }
@@ -61,10 +63,10 @@ Page({
       wx.showToast({ title: '昵称已保存' })
     } catch (error) {
       console.error('昵称同步失败', error)
-      wx.showToast({ title: '昵称同步失败', icon: 'none' })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
     }
   },
-  async recentChange(e) { const index = Number(e.detail.value); try { await store.saveSettings({ recentDays: this.data.recentOptions[index] }) } catch (error) { console.error(error); wx.showToast({ title: '云同步失败', icon: 'none' }) } this.refresh() },
-  async mealChange(e) { const index = Number(e.detail.value); try { await store.saveSettings({ defaultMeal: store.MEALS[index] }) } catch (error) { console.error(error); wx.showToast({ title: '云同步失败', icon: 'none' }) } this.refresh() },
-  async repeatChange(e) { try { await store.saveSettings({ allowRepeat: e.detail.value }) } catch (error) { console.error(error); wx.showToast({ title: '云同步失败', icon: 'none' }) } this.refresh() },
+  async recentChange(e) { const index = Number(e.detail.value); try { await store.saveSettings({ recentDays: this.data.recentOptions[index] }) } catch (error) { console.error(error); wx.showToast({ title: '保存失败，请重试', icon: 'none' }) } this.refresh() },
+  async mealChange(e) { const index = Number(e.detail.value); try { await store.saveSettings({ defaultMeal: store.MEALS[index] }) } catch (error) { console.error(error); wx.showToast({ title: '保存失败，请重试', icon: 'none' }) } this.refresh() },
+  async repeatChange(e) { try { await store.saveSettings({ allowRepeat: e.detail.value }) } catch (error) { console.error(error); wx.showToast({ title: '保存失败，请重试', icon: 'none' }) } this.refresh() },
 })

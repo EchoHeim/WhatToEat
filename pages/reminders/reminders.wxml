@@ -1,8 +1,8 @@
 <navigation-bar title="日期提醒" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad reminder-page">
   <view class="title-row">
-    <view><view class="page-title">日期提醒</view><view class="muted count">公历 · 农历 · 循环 · 提前提醒</view></view>
-    <button class="add-btn" bindtap="addReminder">＋ 新建</button>
+    <view class="title-main"><view class="page-title">日期提醒</view><view class="muted count">公历 · 农历 · 循环 · 提前提醒</view></view>
+    <view class="add-btn" hover-class="add-btn-hover" bindtap="addReminder">＋ 新建</view>
   </view>
 
   <view wx:if="{{cloudHint}}" class="cloud-hint card">
@@ -32,7 +32,7 @@
   </view>
 
   <view wx:for="{{groups}}" wx:for-item="group" wx:key="key" class="group">
-    <view class="group-head"><text class="section-title">{{group.title}}</text><text class="group-count">{{group.items.length}} 条</text></view>
+    <view class="group-head"><text class="section-title">{{group.title}}</text><text wx:if="{{group.hint}}" class="group-hint">{{group.hint}}</text><text class="group-count">{{group.items.length}} 条</text></view>
     <view class="card list-card">
       <view wx:for="{{group.items}}" wx:for-item="item" wx:key="id" class="item {{item.enabled ? '' : 'off'}}" data-id="{{item.id}}" bindtap="editReminder" bindlongpress="removeReminder">
         <view class="item-main">

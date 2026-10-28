@@ -18,11 +18,26 @@
   "simulatorPluginLibVersion": {},
   "packOptions": {
     "ignore": [
-      { "type": "folder", "value": "tests" },
-      { "type": "folder", "value": ".workbuddy" },
-      { "type": "folder", "value": "memory-plugin" },
-      { "type": "file", "value": "README.md" },
-      { "type": "file", "value": "LICENSE" }
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "folder",
+        "value": ".workbuddy"
+      },
+      {
+        "type": "folder",
+        "value": "preview"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "LICENSE"
+      }
     ],
     "include": []
   },

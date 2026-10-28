@@ -1,36 +1,50 @@
+<import src="/templates/tabbar.wxml" />
 <navigation-bar title="饮食记录" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad">
-  <view class="title-row"><view><view class="page-title">吃饭日历</view><view class="muted count">吃了什么、心情如何，都归到一天里</view></view><button class="add-btn" bindtap="addToday">＋ 记一餐</button></view>
+  <view class="title-row"><view class="title-main"><view class="page-title">一日三餐，好好吃饭</view><view class="muted count">唯有美食与爱，不可辜负！</view></view><view class="add-btn" hover-class="add-btn-hover" bindtap="addToday">＋ 记一餐</view></view>
 
   <view class="calendar card">
     <view class="month-head"><text class="month-arrow {{canPrev ? '' : 'disabled'}}" bindtap="prevMonth">‹</text><text class="month-title">{{monthTitle}}</text><text class="month-arrow {{canNext ? '' : 'disabled'}}" bindtap="nextMonth">›</text></view>
     <view class="week-row"><text wx:for="{{weeks}}" wx:key="*this">{{item}}</text></view>
-    <view class="day-grid"><view wx:for="{{cells}}" wx:key="key" class="day {{item.empty ? 'empty-day' : ''}} {{item.future ? 'future' : ''}} {{item.hasMood ? 'with-mood' : ''}} {{selectedDate === item.date ? 'selected' : ''}}" data-date="{{item.date}}" bindtap="selectDate"><view class="day-num {{item.isToday ? 'is-today' : ''}}"><text>{{item.day}}</text></view><text wx:if="{{item.mark}}" class="day-mark">{{item.mark}}</text></view></view>
+    <view class="day-grid"><view wx:for="{{cells}}" wx:key="key" class="day {{item.empty ? 'empty-day' : ''}} {{item.future ? 'future' : ''}} {{item.hasMood ? 'with-mood' : ''}} {{selectedDate === item.date ? 'selected' : ''}}" data-date="{{item.date}}" bindtap="selectDate"><view class="day-num {{item.isToday ? 'is-today' : ''}} {{item.hasFestival ? 'festival' : ''}} {{item.hasAnniversary ? 'anniversary' : ''}}"><text>{{item.day}}</text></view><image wx:if="{{item.moodIcon}}" class="day-mark-img" mode="aspectFit" src="{{item.moodIcon}}" /><text wx:elif="{{item.mark}}" class="day-mark">{{item.mark}}</text></view></view>
+  </view>
+
+  <view wx:if="{{festivals.length}}" class="festival-card card">
+    <view class="festival-head"><text class="festival-eyebrow">FESTIVAL</text><text class="festival-head-title">{{festivalTitle}}</text></view>
+    <view wx:for="{{festivals}}" wx:key="key" class="festival-row {{index === 0 ? 'first' : ''}}">
+      <view class="festival-when {{item.offset === 0 ? 'today' : ''}}">{{item.whenText}}</view>
+      <view class="festival-main">
+        <view class="festival-line"><text class="festival-emoji">{{item.emoji}}</text><text class="festival-name">{{item.name}}</text><text class="festival-tag">{{item.kindText}}</text></view>
+        <view wx:if="{{item.food}}" class="festival-food">吃点：{{item.food}}</view>
+      </view>
+      <view class="festival-date">{{item.dateText}}<text class="festival-weekday">{{item.weekday}}</text></view>
+    </view>
   </view>
 
   <view wx:if="{{todayEmpty}}" class="today-hint card" bindtap="openTodayCheckin">
     <view class="hint-emoji">🌤️</view>
-    <view class="hint-main"><view class="hint-title">今天还是空白</view><view class="hint-desc">写一句今天的心情，或者先记一餐</view></view>
+    <view class="hint-main"><view class="hint-title">今天还是空白</view><view class="hint-desc">{{hintDate}}还没有记录，写一句心情或先记一餐</view></view>
     <view class="hint-action">写心情</view>
   </view>
 
-  <view class="record-head"><view><text class="section-title">{{selectedDate ? '这一天' : '这个月'}}</text><text class="record-count">{{monthCount}} 餐 · {{moodCount}} 天心情</text></view><text wx:if="{{selectedDate}}" class="clear" bindtap="clearDate">查看整月</text></view>
+  <view wx:if="{{days.length || selectedDate}}" class="record-head"><text class="record-count">{{monthCount}} 餐</text><text wx:if="{{selectedDate}}" class="clear" bindtap="clearDate">查看整月</text></view>
 
   <view wx:if="{{days.length}}" class="day-list">
     <view wx:for="{{days}}" wx:key="date" class="day-card card">
       <view class="day-head">
-        <view class="day-mood {{item.moodEmoji ? 'filled' : ''}}" data-date="{{item.date}}" bindtap="openCheckin">{{item.moodEmoji || '＋'}}</view>
+        <view class="day-mood {{item.moodIcon ? 'filled' : ''}}" data-date="{{item.date}}" bindtap="openCheckin"><image wx:if="{{item.moodIcon}}" class="day-mood-img" mode="aspectFit" src="{{item.moodIcon}}" /><text wx:else>＋</text></view>
         <view class="day-title" data-date="{{item.date}}" bindtap="openCheckin">
           <view class="day-line"><text class="day-label">{{item.label}}</text><text class="day-weekday">{{item.weekday}}</text><text wx:if="{{item.isToday}}" class="day-today">今天</text></view>
           <view class="day-sub">{{item.moodLabel ? '心情 ' + item.moodLabel : '还没写心情'}} · {{item.mealCount}} 餐</view>
         </view>
-        <view class="day-add" data-date="{{item.date}}" catchtap="addMeal">＋ 一餐</view>
+        <view class="day-add" data-date="{{item.date}}" catchtap="addMeal">补一餐</view>
       </view>
       <view wx:if="{{item.note}}" class="day-note" data-date="{{item.date}}" bindtap="openCheckin">{{item.note}}</view>
       <view wx:if="{{item.meals.length}}" class="meal-list">
         <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal" data-id="{{meal.id}}" bindtap="editRecord" bindlongpress="removeRecord">
           <text class="meal-emoji">{{meal.emoji}}</text>
           <text class="meal-type">{{meal.mealType}}</text>
+          <text wx:if="{{meal.timeText}}" class="meal-time">{{meal.timeText}}</text>
           <text class="meal-name">{{meal.dishName}}</text>
           <text class="meal-score">★ {{meal.score}}</text>
         </view>
@@ -38,7 +52,6 @@
       <view wx:else class="meal-empty">这一天还没有记录餐食</view>
     </view>
   </view>
-  <view wx:else class="empty card">这个月还是一片空白<br/><text>记下第一餐，或者先写一句心情</text></view>
-  <view wx:if="{{days.length}}" class="more-row" bindtap="openCheckins">连续天数与本月心情分布 ›</view>
-  <view wx:if="{{days.length}}" class="tip-line">点日期或心情修改 · 点某一餐编辑、长按删除</view>
+  <view wx:else class="empty card">今天还是空白哦<br/><text>留下一点生活的痕迹呗~</text></view>
 </view></scroll-view>
+<template is="app-tabbar" data="{{...tabbar}}" />

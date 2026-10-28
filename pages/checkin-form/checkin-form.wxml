@@ -13,23 +13,11 @@
       <view class="label">今天的心情</view>
       <view class="mood-grid">
         <view wx:for="{{moods}}" wx:key="key" class="mood {{moodKey === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="chooseMood">
-          <text class="mood-emoji">{{item.emoji}}</text>
+          <image class="mood-icon" mode="aspectFit" src="{{item.icon}}" />
           <text class="mood-label">{{item.label}}</text>
         </view>
       </view>
       <view class="field-hint">选一个最接近的心情</view>
-    </view>
-
-    <view class="field">
-      <view class="label">今天吃了</view>
-      <view class="meal-summary" bindtap="addMeal">
-        <view class="meal-summary-main">
-          <text class="meal-summary-text {{mealNames ? '' : 'meal-summary-muted'}}">{{mealNames || '这一天还没有记录餐食'}}</text>
-          <text wx:if="{{mealCount}}" class="meal-summary-count">{{mealCount}} 餐</text>
-        </view>
-        <text class="meal-summary-link">{{mealCount ? '＋ 加一餐' : '去记一餐 ›'}}</text>
-      </view>
-      <view class="field-hint">饮食来自「记一餐」，这里不用重复写</view>
     </view>
 
     <view class="field no-border">
@@ -39,7 +27,7 @@
   </view>
 
   <view wx:if="{{moodKey}}" class="preview card">
-    <text class="preview-icon">{{moodEmoji}}</text>
+    <image class="preview-icon" mode="aspectFit" src="{{moodIcon}}" />
     <text class="preview-text">{{dayLabel}} · {{moodLabel}}</text>
   </view>
 

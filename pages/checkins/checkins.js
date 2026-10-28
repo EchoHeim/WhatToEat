@@ -1,5 +1,6 @@
 const store = require('../../utils/store')
 const checkinLib = require('../../utils/checkin')
+const { randomQuote, randomMark } = require('../../utils/quotes')
 
 function dateLabel(dateText) {
   if (!checkinLib.isDateText(dateText)) return dateText
@@ -8,6 +9,8 @@ function dateLabel(dateText) {
 
 Page({
   data: {
+    quote: '',
+    mark: '',
     today: '',
     checkedToday: false,
     todayMood: null,
@@ -21,6 +24,8 @@ Page({
     loading: true
   },
   onShow() {
+    // 每进一次页面换一句、换一个小标记，和页面数据无关，先设好再画内容
+    this.setData({ quote: randomQuote(), mark: randomMark() })
     // 先画本地缓存，同步在后台跑完再刷新
     this.refresh()
     store.syncFromCloud()
@@ -29,15 +34,6 @@ Page({
   },
   refresh() {
     const checkins = store.getCheckins()
-    const records = store.getRecords()
-    // 饮食统一从「记录一餐」汇总，旧签到里的手写文本只作为兜底
-    const mealsByDate = {}
-    records.forEach(item => {
-      if (!item || !item.date) return
-      if (!mealsByDate[item.date]) mealsByDate[item.date] = []
-      mealsByDate[item.date].push(item)
-    })
-    const dietOf = (date, fallback) => (mealsByDate[date] ? mealsByDate[date].map(item => item.dishName).join('、') : fallback || '')
     const info = checkinLib.overview(checkins)
     const tally = checkinLib.moodTally(checkins, checkinLib.monthPrefix(info.today))
     const max = tally.reduce((value, item) => Math.max(value, item.count), 0)
@@ -49,8 +45,8 @@ Page({
         dateLabel: dateLabel(item.date),
         weekday: checkinLib.weekdayText(item.date),
         emoji: mood.emoji,
+        icon: mood.icon,
         moodLabel: mood.label,
-        diet: dietOf(item.date, item.diet),
         note: item.note || '',
         isToday: item.date === info.today
       }
@@ -59,7 +55,7 @@ Page({
       today: info.today,
       checkedToday: info.checkedToday,
       todayMood: info.todayMood,
-      todayRecord: info.todayRecord ? { ...info.todayRecord, diet: dietOf(info.today, info.todayRecord.diet) } : null,
+      todayRecord: info.todayRecord ? { ...info.todayRecord, note: info.todayRecord.note || '' } : null,
       streak: info.streak,
       total: info.total,
       monthCount: info.monthCount,
@@ -84,7 +80,7 @@ Page({
           wx.showToast({ title: '已删除' })
         } catch (error) {
           console.error(error)
-          wx.showToast({ title: '本地已删除，云同步失败', icon: 'none' })
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
         }
         this.refresh()
       }

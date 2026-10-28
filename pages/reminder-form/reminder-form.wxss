@@ -20,6 +20,8 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .seg.active { background: #FFFDF8; color: #292824; font-weight: 700; box-shadow: 0 4rpx 12rpx rgba(67, 49, 34, .08); }
 
 .picker-value, .small-picker { display: flex; align-items: center; justify-content: space-between; height: 76rpx; padding: 0 22rpx; background: #F6F2EA; border-radius: 16rpx; font-size: 27rpx; }
+/* 纪念日「每年」是定死的，用一行只读值展示，不做成可点的 chip */
+.fixed-line { display: flex; align-items: center; height: 76rpx; padding: 0 22rpx; background: #F6F2EA; border-radius: 16rpx; font-size: 27rpx; color: #8B8982; }
 .picker-value text:last-child { color: #99958D; font-size: 23rpx; }
 .small-picker { font-size: 24rpx; }
 .two-col { display: flex; width: 100%; }

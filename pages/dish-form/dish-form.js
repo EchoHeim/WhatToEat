@@ -69,7 +69,7 @@ Page({
       wx.showToast({ title: this.data.id ? '已保存' : '已添加' })
     } catch (error) {
       console.error(error)
-      wx.showToast({ title: '本地已保存，云同步失败', icon: 'none' })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
     } finally {
       wx.hideLoading()
     }

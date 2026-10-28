@@ -1,0 +1,16 @@
+<template name="app-tabbar">
+  <view class="app-tabbar">
+    <view
+      wx:for="{{list}}"
+      wx:key="pagePath"
+      class="app-tab {{selected === index ? 'on' : ''}}"
+      hover-class="app-tab-hover"
+      hover-start-time="0"
+      data-index="{{index}}"
+      bindtap="onTabTap"
+    >
+      <image class="app-tab-icon" src="/images/tabbar/{{item.icon}}{{selected === index ? '-active' : ''}}.png" />
+      <text class="app-tab-text">{{item.text}}</text>
+    </view>
+  </view>
+</template>

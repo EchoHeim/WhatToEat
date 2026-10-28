@@ -1,11 +1,19 @@
-<navigation-bar title="{{id ? '编辑提醒' : '新建提醒'}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<navigation-bar title="{{kind === 'anniversary' ? (id ? '编辑纪念日' : '新建纪念日') : (id ? '编辑提醒' : '新建提醒')}}" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad form-page">
-  <view class="intro"><view class="eyebrow">REMINDER</view><view class="page-title">什么时候提醒你？</view></view>
+  <view class="intro"><view class="eyebrow">{{kind === 'anniversary' ? 'ANNIVERSARY' : 'REMINDER'}}</view><view class="page-title">{{kind === 'anniversary' ? '哪一天值得记住？' : '什么时候提醒你？'}}</view></view>
 
   <view class="form-card card">
     <view class="field">
-      <view class="label">提醒内容</view>
-      <input class="text-input" placeholder="例如：妈妈生日、交房租、每天吃药" value="{{content}}" bindinput="contentChange" maxlength="40" />
+      <view class="label">类型</view>
+      <view class="segment">
+        <view wx:for="{{kinds}}" wx:key="value" class="seg {{kind === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="kindChange">{{item.label}}</view>
+      </view>
+      <view class="field-hint">{{kind === 'anniversary' ? '纪念日不推送，只在日历上把那一天标成紫色' : '提醒会按时间推送（已授权微信推送的话）'}}</view>
+    </view>
+
+    <view class="field">
+      <view class="label">{{kind === 'anniversary' ? '名称' : '提醒内容'}}</view>
+      <input class="text-input" placeholder="{{kind === 'anniversary' ? '例如：结婚纪念日、奶奶生日' : '例如：奶奶生日、交房租、每天吃药'}}" value="{{content}}" bindinput="contentChange" maxlength="40" />
     </view>
 
     <view class="field">
@@ -27,7 +35,13 @@
       </block>
     </view>
 
-    <view class="field">
+    <view wx:if="{{kind === 'anniversary'}}" class="field">
+      <view class="label">循环方式</view>
+      <view class="fixed-line">每年</view>
+      <view class="field-hint">纪念日每年都有：公历按同一天，农历按农历同一天</view>
+    </view>
+
+    <view wx:else class="field">
       <view class="label">循环方式</view>
       <view class="chip-row">
         <view wx:for="{{repeats}}" wx:key="value" class="chip {{repeat === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="repeatChange">{{item.label}}</view>
@@ -35,28 +49,39 @@
       <view class="field-hint">{{dailyRepeat ? '每天都会提醒，无需设置提前天数' : '选择每月/每年后，会在每个周期的同一天提醒'}}</view>
     </view>
 
-    <view wx:if="{{!dailyRepeat}}" class="field">
+    <view wx:if="{{kind === 'anniversary'}}" class="field">
+      <view class="switch-row">
+        <view class="switch-text"><text class="label no-margin">到期提醒</text><text class="field-hint">关掉就只在日历上标个紫色日子，不推送</text></view>
+        <switch checked="{{notify}}" color="#E85D3F" bindchange="notifyChange" />
+      </view>
+    </view>
+
+    <view wx:if="{{(kind === 'reminder' && !dailyRepeat) || notify}}" class="field">
       <view class="label">提前提醒</view>
       <view class="chip-row">
         <view wx:for="{{advanceOptions}}" wx:key="value" class="chip {{item.checked ? 'active' : ''}}" data-value="{{item.value}}" bindtap="toggleAdvance">{{item.label}}</view>
       </view>
+      <view wx:if="{{kind === 'anniversary'}}" class="field-hint">三个都能选，同时提醒</view>
     </view>
 
-    <view class="field">
+    <view wx:if="{{kind === 'reminder' || notify}}" class="field">
       <view class="label">提醒时间</view>
       <picker mode="time" value="{{time}}" bindchange="timeChange"><view class="picker-value"><text>{{time}}</text><text>选择 ›</text></view></picker>
     </view>
 
-    <view class="field no-border">
+    <view wx:if="{{kind === 'reminder'}}" class="field no-border">
       <view class="switch-row">
         <view class="switch-text"><text class="label no-margin">同时发送微信提醒</text><text class="field-hint">{{pushReady ? '微信订阅一次可推送一条，收到后需再次开启' : '未配置订阅消息模板 ID，仅应用内提醒'}}</text></view>
         <switch checked="{{wantPush}}" color="#E85D3F" bindchange="wantPushChange" />
       </view>
     </view>
+    <view wx:else class="field no-border">
+      <view class="field-hint">{{notify ? '到期当天（含提前节点）会发微信提醒' : '纪念日不发送微信提醒，只在日历上标记'}}</view>
+    </view>
   </view>
 
-  <view class="preview card"><text class="preview-icon">⏰</text><text class="preview-text">{{previewText}}</text></view>
+  <view class="preview card"><text class="preview-icon">{{kind === 'anniversary' ? '🎉' : '⏰'}}</text><text class="preview-text">{{previewText}}</text></view>
 
-  <button class="primary-btn save-btn" bindtap="save">{{id ? '保存修改' : '创建提醒'}}</button>
-  <button wx:if="{{id}}" class="ghost-btn delete-btn" bindtap="remove">删除这条提醒</button>
+  <button class="primary-btn save-btn" bindtap="save">{{kind === 'anniversary' ? (id ? '保存修改' : '创建纪念日') : (id ? '保存修改' : '创建提醒')}}</button>
+  <button wx:if="{{id}}" class="ghost-btn delete-btn" bindtap="remove">{{kind === 'anniversary' ? '删除这个纪念日' : '删除这条提醒'}}</button>
 </view></scroll-view>

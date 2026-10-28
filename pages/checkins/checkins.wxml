@@ -1,16 +1,15 @@
 <navigation-bar title="每日签到" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad checkin-page">
-  <view class="title-row">
-    <view><view class="page-title">每日签到</view><view class="muted count">记下今天吃了什么、心情如何</view></view>
-    <button class="add-btn" bindtap="goForm">＋ 签到</button>
+  <view class="quote">
+    <text class="quote-mark">{{mark}}</text>
+    <text class="quote-text">{{quote}}</text>
   </view>
 
   <view class="today-card card {{checkedToday ? '' : 'pending'}}">
-    <view class="today-mood">{{checkedToday ? todayMood.emoji : '🌤️'}}</view>
+    <view class="today-mood"><image wx:if="{{checkedToday}}" class="today-mood-img" mode="aspectFit" src="{{todayMood.icon}}" /><text wx:else>🌤️</text></view>
     <view class="today-main">
       <view class="today-title">{{checkedToday ? '今天已签到 · ' + todayMood.label : '今天还没签到'}}</view>
-      <view class="today-diet">{{checkedToday ? (todayRecord.diet || '这一天还没写吃了什么') : '花十秒记下一餐和心情'}}</view>
-      <view wx:if="{{checkedToday && todayRecord.note}}" class="today-note">{{todayRecord.note}}</view>
+      <view class="today-diet">{{checkedToday ? (todayRecord.note || '今天还没写随笔') : '花十秒选个心情，写两句'}}</view>
     </view>
     <view class="today-action {{checkedToday ? '' : 'active'}}" bindtap="openToday">{{checkedToday ? '修改' : '签到'}}</view>
   </view>
@@ -24,7 +23,7 @@
   <view class="section-label">最近 14 天</view>
   <view class="strip card">
     <view wx:for="{{strip}}" wx:key="date" class="strip-day {{item.checked ? 'on' : ''}} {{item.isToday ? 'today' : ''}}">
-      <text class="strip-emoji">{{item.checked ? item.emoji : '·'}}</text>
+      <image wx:if="{{item.checked}}" class="strip-icon" mode="aspectFit" src="{{item.icon}}" /><text wx:else class="strip-emoji">·</text>
       <text class="strip-num">{{item.day}}</text>
     </view>
   </view>
@@ -33,7 +32,7 @@
     <view class="section-label">本月心情</view>
     <view class="tally card">
       <view wx:for="{{tally}}" wx:key="key" class="tally-row">
-        <text class="tally-emoji">{{item.emoji}}</text>
+        <image class="tally-icon" mode="aspectFit" src="{{item.icon}}" />
         <text class="tally-label">{{item.label}}</text>
         <view class="tally-bar"><view class="tally-fill" style="width: {{item.percent}}%"></view></view>
         <text class="tally-count">{{item.count}}</text>
@@ -44,19 +43,17 @@
   <view class="section-label">签到记录</view>
   <view wx:if="{{list.length}}" class="card list-card">
     <view wx:for="{{list}}" wx:key="id" class="item" data-id="{{item.id}}" data-date="{{item.date}}" bindtap="openCheckin" bindlongpress="removeCheckin">
-      <view class="item-mood">{{item.emoji}}</view>
+      <view class="item-mood"><image class="item-mood-img" mode="aspectFit" src="{{item.icon}}" /></view>
       <view class="item-main">
         <view class="item-head">
           <text class="item-date">{{item.dateLabel}}</text>
           <text class="item-weekday">{{item.weekday}}</text>
           <text wx:if="{{item.isToday}}" class="item-today">今天</text>
         </view>
-        <view wx:if="{{item.diet}}" class="item-diet">{{item.diet}}</view>
         <view wx:if="{{item.note}}" class="item-note">{{item.note}}</view>
       </view>
       <text class="item-mood-label">{{item.moodLabel}}</text>
     </view>
   </view>
   <view wx:else class="empty card">还没有签到记录<br/><text>从今天开始，每天留一句</text></view>
-  <view wx:if="{{list.length}}" class="tip-line">轻点修改 · 长按删除</view>
 </view></scroll-view>

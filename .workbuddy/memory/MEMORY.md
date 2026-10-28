@@ -18,10 +18,15 @@
 - 集合与权限全部「仅创建者可读写」（ACL `PRIVATE`）：`dishes` / `meal_records` / `user_settings` / `reminders` / `daily_checkins`。
 - `pullCloudData` 用 `mergeLocalOnly()` 合并：云端没有的本地条目先补传，避免「集合缺失期间存的数据被空云端覆盖」。
 - 错误提示按实际集合名生成（`tagCollection` + `describeCloudError(error, collection)`），不要再硬编码集合名。
+- **菜品聚合（eatCount / score / lastEatDate）一律按 `meal_records` 重算，禁止再用增量平均**（`dishStatsFromRecords` + `recomputeDish`）。增删改三条路径共用一套重算；`pullCloudData` 末尾还会 `recomputeAllDishStats()` 本地自愈一次，只纠本机不反写云端，避免同步抖动。
+- `saveRecord` 带 `id` 即编辑（保留 `createdAt`，换菜时前后两道菜都回算），不带才是新增。记录编辑入口在 `pages/records` 点某一餐，长按仍是删除。
+- 设置项不要写字段白名单：`normalizeSettings()` 以 `DEFAULT_SETTINGS` 的键与类型为准，新增设置项只改这一处，云端缺字段自动落回默认值。
+- **页面首屏一律「先渲染本地缓存 → 后台 `syncFromCloud()` → 同步成功再 refresh」**，禁止把 `await store.syncFromCloud()` 放在首次 `setData` 之前——`wx.cloud` 一次全量拉取要 1~2 秒，挡在前面就是白屏。表单页同步回来后要用 `touched` 标记判断，别覆盖用户正在输入的内容。
 
 ## 云函数与触发器（踩过的坑）
 - `reminderPush` 的定时触发器**只能由微信开发者工具图形界面上传**（右键 `config.json` → 上传触发器）。IDE 的 CLI（`cli cloud functions deploy`）**没有触发器能力**，`cloud functions` 子命令只有 list / info / deploy / inc-deploy / download，也没有任何触发器参数。
-- `tcb` CLI / 腾讯云控制台 / CloudBase MCP 建的触发器照样会按时调用，但**没有小程序云调用上下文**，`cloud.openapi.subscribeMessage.send` 报 `-501001 invalid wx openapi access_token`。排查先 `tcb api scf ListTriggers` 看触发器在不在、怎么来的。腾讯云开发社区 issue #1445 官方工程师的解法就是：删掉网页控制台配的触发器，改成 config.json 声明 + 用 IDE 随函数上传。
+- `tcb` CLI / 腾讯云控制台 / CloudBase MCP 建的触发器照样会按时调用，但**没有小程序云调用上下文**，`cloud.openapi.subscribeMessage.send` 报 `-501001 invalid wx openapi access_token`。腾讯云开发社区 issue #1445 官方工程师的解法就是：删掉网页控制台配的触发器，改成 config.json 声明 + 用 IDE 随函数上传。
+- **别用 `tcb api scf ListTriggers` 判断触发器在不在（2026-10-28 修正）**：云开发的定时触发器不挂在 SCF 触发器列表里，`ListTriggers` 返回 `TotalCount:0 / Triggers:[]` 时触发器照样在跑（实测 2026-10-28 13:40/13:45/13:50 每 5 分钟一次 `Call succeeded`）。唯一判据是 `tcb logs search --query 'function_name:"reminderPush"' -e <env>` 看有没有按周期出现 `RetMsg: {... "scanned":N ...}`。`tcb fn log` 已废弃，别用。
 - **`-501001` 不能拿来当判据**：`tcb fn invoke`、控制台「云端测试」、任何 API 手动调用都不带小程序上下文，必然报这个错，哪怕配置全对。唯一有效验证是「触发器真跑一次后看日志」。
 - 部署云函数通道优先级：
   1. CloudBase MCP `mcp__cloudbase__manageFunctions`（action=`updateFunctionCode` + `functionRootPath`）—— 秒级成功、包一定可用，但**不带 `permissions.openapi`、不建触发器**。
@@ -58,3 +63,18 @@ env -u NODE_OPTIONS ./cli.bat islogin      # → {"login":true}
 - **踩坑 2**：沙箱下 GPU 进程反复 `exit_code=-1073741819` → `GPU process isn't usable. Goodbye.` 直接带走主进程；`--disable-gpu` 拦不住，必须非沙箱启动。
 - **不再需要**改 `WeappLocalData/localstorage_*.json` 里的 `enableServicePort`：端口开了 IDE 自己会在 `Default/.ide` 写端口号，CLI 自动发现。
 - IDE 版本对得上角色设定里的 Nightly 要求还差一档（stable 2608070 < 2608312），虚拟支付相关 skill 要靠 Nightly。
+
+## 上传代码包（2026-10-28 打过一遍）
+
+```bash
+# Git Bash 里 cli.bat upload 会报 "'C:\Program' 不是内部或外部命令"（内部子进程没加引号），
+# 绕过：直接拿 Electron 跑 cli/index.js，效果等价
+cd "/c/Program Files (x86)/Tencent/微信web开发者工具"
+env -u NODE_OPTIONS ELECTRON_RUN_AS_NODE=1 "./微信开发者工具.exe" -e 'const e=process.argv[1],a=process.argv.slice(2).filter(x=>x!=="--electron");if(!process.env.cwd)process.env.cwd=process.cwd();process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a);require(e)' "./resources/app.asar.unpacked/js/common/cli/index.js" upload --project "D:/Personal/WhatToEat" -v 0.0.2 -d "描述" --info-output "C:/.../up.json"
+# 成功标志是最后一行 "√ upload" + 体积表；exit=0
+```
+
+- **`packOptions.ignore` 改了必须 `cli.bat quit` 重启 IDE 才生效**，`close` + `open` 不管用（配置缓存在 IDE 主进程里）。
+- **`preview` 会放过未引用的坏 js，`upload` 不会**：`memory-plugin/` 里那两个 DSH 插件源码是顶层 `return {...}`（非法模块），preview 能过、upload 直接 `× compile_start` 报 `Return statement is not allowed here`。已把它连同 README/LICENSE 一起写进 `packOptions.ignore`。
+- 上传成功不会自动设为体验版，要去公众平台「版本管理 → 开发版本」手动设为体验版并扫码。
+- 安全策略会拦 IDE 内部的 `reg.exe`，只影响收尾步骤，上传本身照样成功。

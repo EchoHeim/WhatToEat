@@ -20,9 +20,12 @@ Page({
     list: [],
     loading: true
   },
-  async onShow() {
-    await store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
+  onShow() {
+    // 先画本地缓存，同步在后台跑完再刷新
     this.refresh()
+    store.syncFromCloud()
+      .then(synced => { if (synced) this.refresh() })
+      .catch(error => console.error('云同步失败，使用本地数据', error))
   },
   refresh() {
     const checkins = store.getCheckins()

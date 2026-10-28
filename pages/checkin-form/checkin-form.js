@@ -18,13 +18,16 @@ Page({
     existing: false,
     dayLabel: ''
   },
-  async onLoad(options) {
+  onLoad(options) {
     const today = checkinLib.today()
     const wanted = options && options.date ? options.date : today
     const date = checkinLib.isDateText(wanted) && wanted <= today ? wanted : today
     this.setData({ today, date })
-    await store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
     this.load(date)
+    // 同步放后台；回来后只有在用户没动过表单时才补一次数据，免得覆盖正在写的内容
+    store.syncFromCloud()
+      .then(synced => { if (synced && !this.touched) this.load(this.data.date) })
+      .catch(error => console.error('云同步失败，使用本地数据', error))
   },
   /** 载入某一天的签到与当天饮食，切日期时复用 */
   load(date) {
@@ -53,13 +56,14 @@ Page({
     const meals = store.getRecords().filter(item => item.date === this.data.date)
     this.setData({ mealNames: meals.map(item => item.dishName).join('、'), mealCount: meals.length })
   },
-  dateChange(e) { this.load(e.detail.value) },
+  dateChange(e) { this.touched = true; this.load(e.detail.value) },
   chooseMood(e) {
+    this.touched = true
     const mood = checkinLib.moodByKey(e.currentTarget.dataset.key)
     if (!mood) return
     this.setData({ moodKey: mood.key, moodEmoji: mood.emoji, moodLabel: mood.label })
   },
-  noteChange(e) { this.setData({ note: e.detail.value }) },
+  noteChange(e) { this.touched = true; this.setData({ note: e.detail.value }) },
   /** 饮食去「记录一餐」补，签到这里只负责心情和随笔 */
   addMeal() { wx.navigateTo({ url: `/pages/record-form/record-form?date=${this.data.date}` }) },
   async save() {

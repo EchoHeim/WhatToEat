@@ -32,14 +32,23 @@
   padding-left: var(--left);
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   height: 100%;
   box-sizing: border-box;
 }
 
+/*
+ * 命中区做成 44×44 的方块，跟图标一起在导航条里垂直居中。
+ * 原来用 -11px 的负 margin 把命中区顶到导航条上沿之外（图标也被顶到贴边），
+ * Windows 模拟器里那一截落在页面外，返回按钮就变成「看得见、点不到」。
+ */
 .weui-navigation-bar__btn_goback_wrapper {
-  padding: 11px 18px 11px 16px;
-  margin: -11px -18px -11px -16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -16px;
 }
 
 .weui-navigation-bar__btn_goback_wrapper.weui-active {

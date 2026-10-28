@@ -16,7 +16,7 @@
     <view wx:if="{{filterOpen}}" class="filter-card card">
       <view class="filter-head"><text class="section-title">限定范围</text><text class="clear" bindtap="clearFilters">清空</text></view>
       <view class="filter-label">餐次</view><view class="chip-row"><view wx:for="{{meals}}" wx:key="*this" class="choice {{filters.meal === item ? 'active' : ''}}" data-type="meal" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
-      <view class="filter-label">类型</view><scroll-view scroll-x class="horizontal"><view class="chip-row nowrap"><view wx:for="{{categories}}" wx:key="*this" class="choice {{filters.category === item ? 'active' : ''}}" data-type="category" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view></scroll-view>
+      <view class="filter-label">类型</view><view class="chip-row"><view wx:for="{{categories}}" wx:key="*this" class="choice {{filters.category === item ? 'active' : ''}}" data-type="category" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
       <view class="filter-label">方式</view><view class="chip-row"><view wx:for="{{eatTypes}}" wx:key="*this" class="choice {{filters.eatType === item ? 'active' : ''}}" data-type="eatType" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
       <view class="filter-label">预算</view><view class="chip-row"><view wx:for="{{prices}}" wx:key="*this" class="choice {{filters.price === item ? 'active' : ''}}" data-type="price" data-value="{{item}}" bindtap="chooseFilter">{{item}}</view></view>
     </view>

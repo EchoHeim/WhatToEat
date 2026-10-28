@@ -10,10 +10,18 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .calendar { padding: 26rpx; }
 .month-head { display: flex; justify-content: space-between; align-items: center; padding: 0 10rpx 20rpx; font-size: 42rpx; }
 .month-title { font-size: 29rpx; font-weight: 700; }
+.month-arrow.disabled { color: #DCD7CD; }
 .week-row, .day-grid { display: flex; width: 100%; }
 .week-row text { display: block; width: 14.2857%; flex: none; text-align: center; color: #A19D94; font-size: 21rpx; }
 .day-grid { flex-wrap: wrap; }
 .day { display: flex; align-items: center; flex-direction: column; width: 14.2857%; flex: none; height: 70rpx; margin-top: 12rpx; padding-top: 8rpx; box-sizing: border-box; border-radius: 18rpx; font-size: 23rpx; }
+.day-num { display: flex; align-items: center; justify-content: center; min-width: 36rpx; height: 34rpx; padding: 0 2rpx; box-sizing: border-box; }
+/* 今天：给数字套一个外框，和选中态（整格深色）区分开 */
+.day-num.is-today { border: 2rpx solid #E85D3F; border-radius: 10rpx; color: #E85D3F; font-weight: 700; }
+.day.selected .day-num.is-today { border-color: #fff; color: #fff; }
+/* 未来日期不可选，压暗 */
+.day.future { color: #D6D2CA; }
+.day.future.with-mood { background: transparent; }
 .day.with-mood { background: #FFF7F1; }
 .day.selected { background: #292824; color: #fff; }
 .day-mark { margin-top: 2rpx; font-size: 20rpx; line-height: 22rpx; }

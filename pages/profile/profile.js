@@ -1,10 +1,12 @@
 const store = require('../../utils/store')
 
 Page({
-  data: { recentOptions: [0, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', appVersion: 'Ver0.0.2' },
-  async onShow() {
-    await store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
+  data: { recentOptions: [0, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', appVersion: 'Ver0.0.4' },
+  onShow() {
     this.refresh()
+    store.syncFromCloud()
+      .then(synced => { if (synced) this.refresh() })
+      .catch(error => console.error('云同步失败，使用本地数据', error))
   },
   refresh() {
     const dishes = store.getDishes(), records = store.getRecords(), settings = store.getSettings()

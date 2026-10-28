@@ -24,6 +24,13 @@
     <button class="ghost-btn push-btn" bindtap="enablePush">开启</button>
   </view>
 
+  <view class="push-guide card">
+    <view class="guide-title">推送怎么才能真正收到</view>
+    <view class="guide-item"><text class="guide-index">1</text><text class="guide-text">微信「一次性订阅」：点一次「开启」并允许，就攒下 1 次推送额度；点几次攒几次，可以累加。</text></view>
+    <view class="guide-item"><text class="guide-index">2</text><text class="guide-text">只要额度大于 0，提醒到点就会自动推送，推一条扣一次；额度用完才会停。</text></view>
+    <view class="guide-item"><text class="guide-index">3</text><text class="guide-text">攒下的额度永久有效、不会过期；推送会出现在微信的「服务通知」里。</text></view>
+  </view>
+
   <view wx:for="{{groups}}" wx:for-item="group" wx:key="key" class="group">
     <view class="group-head"><text class="section-title">{{group.title}}</text><text class="group-count">{{group.items.length}} 条</text></view>
     <view class="card list-card">

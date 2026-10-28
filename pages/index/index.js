@@ -18,12 +18,21 @@ Page({
     filterCount: 0,
     checkin: { emoji: '🌤️', checked: false, title: '今天还没签到', sub: '记一餐、记心情，十秒搞定' }
   },
-  async onShow() {
-    await store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
+  onShow() {
+    // 先把本地缓存画出来，切 tab 不再等云端往返
+    this.render({ keepDish: false })
+    store.syncFromCloud()
+      .then(synced => { if (synced) this.render({ keepDish: true }) })
+      .catch(error => console.error('云同步失败，使用本地数据', error))
+  },
+  /** keepDish=true：只刷新设置与签到条，不重新抽菜（避免用户看到菜品自己跳变） */
+  render(options) {
+    const keepDish = Boolean(options && options.keepDish)
     const settings = store.getSettings()
     const filters = this.data.filters
     this.setData({ settings, filters, filterCount: Object.values(filters).filter(Boolean).length, checkin: this.checkinView() })
-    this.pick(false)
+    if (keepDish && this.data.dish) return
+    this.pick()
   },
   /** 首页顶部的签到提示条 */
   checkinView() {

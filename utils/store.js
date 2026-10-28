@@ -12,25 +12,26 @@ const CATEGORIES = ['中餐', '西餐', '日料', '韩餐', '面食', '米饭', 
 const TAGS = ['早餐', '午餐', '晚餐', '夜宵', '自己做', '外卖', '堂食', '清淡', '辣', '高蛋白', '减脂', '快手', '聚餐']
 const MEALS = ['早餐', '午餐', '晚餐', '夜宵']
 const EAT_TYPES = ['自己做', '外卖', '堂食']
-const PRICES = ['经济', '普通', '丰盛']
+const PRICES = ['经济', '普通', '丰盛', '豪华']
+/** 每一档对应的价格区间，只用于界面文案，不参与数据匹配 */
+const PRICE_RANGES = { 经济: '10元以下', 普通: '10-30元', 丰盛: '30-120元', 豪华: '120元以上' }
 const DEFAULT_SETTINGS = { recentDays: 7, allowRepeat: false, defaultMeal: '午餐', nickname: '微信用户', avatarFileId: '', pushQuota: 0 }
 
+// 预置菜库：只放菜品本身的信息，评分 / 吃过次数 / 最近一次 / 备注一律留空，
+// 免得新用户一进来就被"假数据"糊一脸（统计、最喜欢、近期过滤全会被污染）。
 const seedDishes = [
-  { id: 'd1', name: '番茄炒蛋', emoji: '🍅', category: '中餐', tags: ['家常菜', '快手', '下饭'], mealTypes: ['午餐', '晚餐'], eatTypes: ['自己做'], price: '经济', score: 4.6, eatCount: 3, lastEatDate: '2026-08-13', remark: '番茄多一点，汤汁拌饭很好吃。', enableRandom: true },
-  { id: 'd2', name: '牛肉面', emoji: '🍜', category: '面食', tags: ['高蛋白', '热乎'], mealTypes: ['午餐', '晚餐'], eatTypes: ['外卖', '堂食'], price: '普通', score: 4.3, eatCount: 5, lastEatDate: '2026-08-07', remark: '加一份青菜。', enableRandom: true },
-  { id: 'd3', name: '黄焖鸡米饭', emoji: '🍛', category: '米饭', tags: ['下饭', '外卖'], mealTypes: ['午餐', '晚餐'], eatTypes: ['外卖', '堂食'], price: '普通', score: 4.1, eatCount: 2, lastEatDate: '2026-07-29', remark: '微辣更合适。', enableRandom: true },
-  { id: 'd4', name: '寿司拼盘', emoji: '🍣', category: '日料', tags: ['清淡', '聚餐'], mealTypes: ['午餐', '晚餐'], eatTypes: ['堂食', '外卖'], price: '丰盛', score: 4.7, eatCount: 2, lastEatDate: '2026-07-18', remark: '', enableRandom: true },
-  { id: 'd5', name: '火锅', emoji: '🍲', category: '火锅', tags: ['辣', '聚餐'], mealTypes: ['晚餐', '夜宵'], eatTypes: ['堂食'], price: '丰盛', score: 4.8, eatCount: 4, lastEatDate: '2026-08-02', remark: '适合周末和朋友一起吃。', enableRandom: true },
-  { id: 'd6', name: '鸡蛋三明治', emoji: '🥪', category: '西餐', tags: ['早餐', '快手'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 4.0, eatCount: 1, lastEatDate: '2026-08-10', remark: '', enableRandom: true },
-  { id: 'd7', name: '麻辣烫', emoji: '🥘', category: '小吃', tags: ['辣', '外卖'], mealTypes: ['午餐', '晚餐', '夜宵'], eatTypes: ['外卖', '堂食'], price: '普通', score: 4.2, eatCount: 3, lastEatDate: '2026-07-25', remark: '多拿蔬菜和豆制品。', enableRandom: true },
-  { id: 'd8', name: '酸奶水果碗', emoji: '🥣', category: '甜品', tags: ['早餐', '减脂', '清淡'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 4.4, eatCount: 2, lastEatDate: '2026-08-16', remark: '香蕉和蓝莓很搭。', enableRandom: true }
+  { id: 'd1', name: '番茄炒蛋', emoji: '🍅', category: '中餐', tags: ['家常菜', '快手', '下饭'], mealTypes: ['午餐', '晚餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd2', name: '牛肉面', emoji: '🍜', category: '面食', tags: ['高蛋白', '热乎'], mealTypes: ['午餐', '晚餐'], eatTypes: ['外卖', '堂食'], price: '普通', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd3', name: '黄焖鸡米饭', emoji: '🍛', category: '米饭', tags: ['下饭', '外卖'], mealTypes: ['午餐', '晚餐'], eatTypes: ['外卖', '堂食'], price: '普通', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd4', name: '寿司拼盘', emoji: '🍣', category: '日料', tags: ['清淡', '聚餐'], mealTypes: ['午餐', '晚餐'], eatTypes: ['堂食', '外卖'], price: '丰盛', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd5', name: '火锅', emoji: '🍲', category: '火锅', tags: ['辣', '聚餐'], mealTypes: ['晚餐', '夜宵'], eatTypes: ['堂食'], price: '丰盛', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd6', name: '鸡蛋三明治', emoji: '🥪', category: '西餐', tags: ['早餐', '快手'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd7', name: '麻辣烫', emoji: '🥘', category: '小吃', tags: ['辣', '外卖'], mealTypes: ['午餐', '晚餐', '夜宵'], eatTypes: ['外卖', '堂食'], price: '普通', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd8', name: '酸奶水果碗', emoji: '🥣', category: '甜品', tags: ['早餐', '减脂', '清淡'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true }
 ].map((dish, index) => ({ ...dish, createdAt: Date.now() - index * 1000 }))
 
-const seedRecords = [
-  { id: 'r1', dishId: 'd1', dishName: '番茄炒蛋', date: '2026-08-13', mealType: '晚餐', score: 4.5, status: '吃得很好', remark: '汤汁很下饭', createdAt: Date.now() - 3000 },
-  { id: 'r2', dishId: 'd6', dishName: '鸡蛋三明治', date: '2026-08-10', mealType: '早餐', score: 4, status: '还不错', remark: '', createdAt: Date.now() - 2000 },
-  { id: 'r3', dishId: 'd5', dishName: '火锅', date: '2026-08-02', mealType: '晚餐', score: 5, status: '吃得很好', remark: '朋友聚餐很开心', createdAt: Date.now() - 1000 }
-]
+// 新用户首启不预置任何"吃过记录"，记录必须由用户自己攒
+const seedRecords = []
 
 function clone(value) { return JSON.parse(JSON.stringify(value)) }
 function get(key, fallback) {
@@ -51,6 +52,44 @@ function bootstrap() {
 
 function getDishes() { return get(KEYS.dishes, seedDishes) }
 function getDish(id) { return getDishes().find(item => item.id === id) }
+
+// ---------- 菜品聚合 ----------
+/**
+ * 从饮食记录推导出菜品的「吃过次数 / 平均分 / 最近一次」。
+ * 以前是保存时做增量平均（(旧均分×旧次数+新分)/(旧次数+1)），
+ * 但删除记录、修改评分、换菜这些操作没法反算，一错就永久错。
+ * 现在一律按已落盘的记录重算，增删改走同一条路径。
+ */
+function dishStatsFromRecords(list) {
+  const items = Array.isArray(list) ? list : []
+  const scored = items.map(item => Number(item && item.score)).filter(value => Number.isFinite(value) && value > 0)
+  const dates = items.map(item => item && item.date).filter(Boolean).sort()
+  return {
+    eatCount: items.length,
+    score: scored.length ? Number((scored.reduce((sum, value) => sum + value, 0) / scored.length).toFixed(1)) : 0,
+    lastEatDate: dates.length ? dates[dates.length - 1] : ''
+  }
+}
+/** 重算并写回本地某道菜的聚合字段；菜品已删除时返回 null */
+function recomputeDish(dishId) {
+  if (!dishId) return null
+  const dishes = getDishes()
+  const index = dishes.findIndex(item => item.id === dishId)
+  if (index < 0) return null
+  const dish = { ...dishes[index], ...dishStatsFromRecords(getRecords().filter(item => item.id && item.dishId === dishId)) }
+  dishes[index] = dish
+  set(KEYS.dishes, dishes)
+  return dish
+}
+/** 聚合回写云端；失败只记日志——本地已经算对了，下次保存会重算 */
+async function syncDishStats(dish) {
+  if (!dish) return
+  try {
+    await upsertCloud('dishes', dish, KEYS.dishes)
+  } catch (error) {
+    console.error('菜品聚合回写云端失败，下次保存会重算', dish.id, error)
+  }
+}
 async function saveDish(input) {
   const dishes = getDishes()
   const now = Date.now()
@@ -76,31 +115,48 @@ async function deleteDish(id) {
 }
 
 function getRecords() { return get(KEYS.records, seedRecords).sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`)) }
+function getRecord(id) { return getRecords().find(item => item.id === id) || null }
+/**
+ * 保存一餐。带 id 视为编辑（原地更新，保留 createdAt），否则新增。
+ * 写完记录后重算涉及到的菜品：编辑时如果换了菜，前后两道菜都要回算。
+ */
 async function saveRecord(input) {
+  const data = input || {}
   const records = getRecords()
-  const record = { ...input, id: uid('record'), createdAt: Date.now(), score: Number(input.score) }
-  records.unshift(record)
-  set(KEYS.records, records)
-  if (record.dishId) {
-    const dishes = getDishes()
-    const index = dishes.findIndex(item => item.id === record.dishId)
-    if (index >= 0) {
-      const dish = dishes[index]
-      const oldCount = Number(dish.eatCount || 0)
-      dish.score = Number(((Number(dish.score || 0) * oldCount + record.score) / (oldCount + 1)).toFixed(1))
-      dish.eatCount = oldCount + 1
-      dish.lastEatDate = record.date
-      set(KEYS.dishes, dishes)
-      await upsertCloud('dishes', dish, KEYS.dishes)
-    }
+  const now = Date.now()
+  const index = data.id ? records.findIndex(item => item.id === data.id) : -1
+  const previous = index >= 0 ? records[index] : null
+  const score = Number(data.score)
+  const record = {
+    ...(previous || {}),
+    ...data,
+    id: previous ? previous.id : uid('record'),
+    mealType: data.mealType || (previous && previous.mealType) || '午餐',
+    status: data.status || (previous && previous.status) || '',
+    remark: data.remark === undefined ? ((previous && previous.remark) || '') : String(data.remark),
+    createdAt: previous ? (previous.createdAt || now) : now,
+    updatedAt: now,
+    score: Number.isFinite(score) ? score : Number(previous && previous.score) || 0
   }
+  if (previous) records[index] = record
+  else records.unshift(record)
+  set(KEYS.records, records)
+
   await upsertCloud('meal_records', record, KEYS.records)
+
+  const touched = [...new Set([record.dishId, previous && previous.dishId].filter(Boolean))]
+  for (const dishId of touched) await syncDishStats(recomputeDish(dishId))
   return record
 }
 async function deleteRecord(id) {
-  const record = getRecords().find(item => item.id === id)
-  set(KEYS.records, getRecords().filter(item => item.id !== id))
-  if (record) await removeCloud('meal_records', record)
+  const records = getRecords()
+  const record = records.find(item => item.id === id)
+  if (!record) return
+  set(KEYS.records, records.filter(item => item.id !== id))
+  // 本地先把聚合回滚，免得云同步失败时统计还挂着已删记录
+  const dish = record.dishId ? recomputeDish(record.dishId) : null
+  await removeCloud('meal_records', record)
+  await syncDishStats(dish)
 }
 
 // ---------- 每日签到 ----------
@@ -201,9 +257,39 @@ function countTodayReminders(dateText) {
   return getReminders().filter(item => item.enabled !== false && reminderLib.isTriggerOn(item, todayText)).length
 }
 
-function getSettings() { return { ...DEFAULT_SETTINGS, ...get(KEYS.settings, DEFAULT_SETTINGS) } }
+// 云端文档里的库层字段，落回本地时剥掉
+const CLOUD_META_KEYS = ['_id', '_openid', 'initialized', 'updatedAt', 'createdAt']
+/**
+ * 设置项归一化：以 DEFAULT_SETTINGS 的键与类型为准，其余字段原样保留。
+ * 早先 pullCloudData 里手写了 6 个字段的白名单，云端文档少一个字段就落成 0 / 空串
+ * （recentDays 变 0 等于「不再避开最近吃过的」）。改成按默认值推导后，
+ * 新增设置项只需要动 DEFAULT_SETTINGS 这一处。
+ */
+function normalizeSettings(input) {
+  const raw = input && typeof input === 'object' ? input : {}
+  const result = {}
+  Object.keys(raw).forEach(key => {
+    if (!CLOUD_META_KEYS.includes(key)) result[key] = raw[key]
+  })
+  Object.keys(DEFAULT_SETTINGS).forEach(key => {
+    const fallback = DEFAULT_SETTINGS[key]
+    const value = raw[key]
+    const empty = value === undefined || value === null || value === ''
+    if (typeof fallback === 'number') {
+      const num = Number(value)
+      result[key] = empty || !Number.isFinite(num) ? fallback : num
+    } else if (typeof fallback === 'boolean') {
+      result[key] = empty ? fallback : Boolean(value)
+    } else {
+      result[key] = typeof value === 'string' ? value : fallback
+    }
+  })
+  return result
+}
+
+function getSettings() { return normalizeSettings(get(KEYS.settings, DEFAULT_SETTINGS)) }
 async function saveSettings(settings) {
-  const value = { ...getSettings(), ...settings }
+  const value = normalizeSettings({ ...getSettings(), ...settings })
   set(KEYS.settings, value)
   if (!cloudEnabled()) return value
   const db = wx.cloud.database()
@@ -377,35 +463,77 @@ async function mergeLocalOnly(collectionName, key, cloudList, dedupeKey) {
   }
   return [...merged, ...cloudList]
 }
-async function pullCloudData(settingsDocument) {
-  set(KEYS.dishes, await mergeLocalOnly('dishes', KEYS.dishes, (await queryAll('dishes')).map(localData)))
-  set(KEYS.records, await mergeLocalOnly('meal_records', KEYS.records, (await queryAll('meal_records')).map(localData)))
-  try {
-    set(KEYS.reminders, await mergeLocalOnly('reminders', KEYS.reminders, (await queryAll('reminders')).map(localData)))
-  } catch (error) {
-    console.error('提醒数据拉取失败，继续使用本地缓存', error)
-  }
-  try {
-    set(KEYS.checkins, await mergeLocalOnly(CHECKIN_COLLECTION, KEYS.checkins, (await queryAll(CHECKIN_COLLECTION)).map(localData), 'date'))
-  } catch (error) {
-    console.error('签到数据拉取失败，继续使用本地缓存', error)
-  }
-  set(KEYS.settings, {
-    recentDays: Number(settingsDocument.recentDays || 0),
-    allowRepeat: Boolean(settingsDocument.allowRepeat),
-    defaultMeal: settingsDocument.defaultMeal || '午餐',
-    nickname: settingsDocument.nickname || '微信用户',
-    avatarFileId: settingsDocument.avatarFileId || '',
-    pushQuota: Number(settingsDocument.pushQuota || 0)
+/**
+ * 五个集合并行拉取，再把结果逐个合并回本地。
+ * 以前是顺序 await，切一次 tab 要排 8~15 次网络往返，这就是切 tab 卡顿的来源。
+ * mergeLocalOnly 仍然串行（它可能要往云端补传本地独有条目），但网络等待已经从「累加」变成「取最大值」。
+ */
+/**
+ * 按本地记录重算所有菜品的聚合字段。
+ * 聚合是派生数据，云端文档里存的只是上一次写回的结果——换设备、旧版本客户端、
+ * 或删除记录时云同步失败，都会让云端那份变旧。所以每次拉完数据都本地自愈一次，
+ * 只纠正本机、不反写云端，避免同步时反复抖动。
+ */
+function recomputeAllDishStats() {
+  const dishes = getDishes()
+  const byDish = {}
+  getRecords().forEach(item => {
+    if (!item || !item.dishId) return
+    if (!byDish[item.dishId]) byDish[item.dishId] = []
+    byDish[item.dishId].push(item)
   })
+  let changed = false
+  const next = dishes.map(dish => {
+    const stats = dishStatsFromRecords(byDish[dish.id] || [])
+    if (dish.eatCount === stats.eatCount && Number(dish.score) === stats.score && dish.lastEatDate === stats.lastEatDate) return dish
+    changed = true
+    return { ...dish, ...stats }
+  })
+  if (changed) set(KEYS.dishes, next)
 }
-async function syncFromCloud() {
+async function pullCloudData(settingsDocument) {
+  const [dishesResult, recordsResult, remindersResult, checkinsResult] = await Promise.allSettled([
+    queryAll('dishes'),
+    queryAll('meal_records'),
+    queryAll('reminders'),
+    queryAll(CHECKIN_COLLECTION)
+  ])
+  // dishes / meal_records 是核心集合，拉不到就整体失败，让调用方走本地降级
+  if (dishesResult.status === 'rejected') throw dishesResult.reason
+  if (recordsResult.status === 'rejected') throw recordsResult.reason
+  set(KEYS.dishes, await mergeLocalOnly('dishes', KEYS.dishes, dishesResult.value.map(localData)))
+  set(KEYS.records, await mergeLocalOnly('meal_records', KEYS.records, recordsResult.value.map(localData)))
+  recomputeAllDishStats()
+  if (remindersResult.status === 'fulfilled') {
+    set(KEYS.reminders, await mergeLocalOnly('reminders', KEYS.reminders, remindersResult.value.map(localData)))
+  } else {
+    console.error('提醒数据拉取失败，继续使用本地缓存', remindersResult.reason)
+  }
+  if (checkinsResult.status === 'fulfilled') {
+    set(KEYS.checkins, await mergeLocalOnly(CHECKIN_COLLECTION, KEYS.checkins, checkinsResult.value.map(localData), 'date'))
+  } else {
+    console.error('签到数据拉取失败，继续使用本地缓存', checkinsResult.reason)
+  }
+  set(KEYS.settings, normalizeSettings(settingsDocument))
+}
+/** 两次全量同步之间的最小间隔；页面切来切去不必每次都拉一遍云 */
+const SYNC_THROTTLE_MS = 20 * 1000
+let lastSyncAt = 0
+/**
+ * 拉取云端数据并合并到本地。
+ * @param {{force?: boolean}} options force=true 时忽略节流窗口（手动刷新用）
+ * @returns {Promise<boolean>} 真的跑了同步返回 true；被节流/未启用云开发返回 false
+ */
+async function syncFromCloud(options) {
   if (!cloudEnabled()) return false
   if (syncPromise) return syncPromise
+  const force = Boolean(options && options.force)
+  if (!force && lastSyncAt && Date.now() - lastSyncAt < SYNC_THROTTLE_MS) return false
   syncPromise = (async () => {
     const result = await wx.cloud.database().collection('user_settings').limit(1).get()
     if (!result.data.length) await migrateLocalToCloud()
     else await pullCloudData(result.data[0])
+    lastSyncAt = Date.now()
     return true
   })()
   try { return await syncPromise } finally { syncPromise = null }
@@ -427,4 +555,4 @@ async function resetDemo() {
   return true
 }
 
-module.exports = { CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, bootstrap, syncFromCloud, getDishes, getDish, saveDish, deleteDish, getRecords, saveRecord, deleteRecord, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, resetDemo }
+module.exports = { CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, getDishes, getDish, saveDish, deleteDish, getRecords, getRecord, saveRecord, deleteRecord, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, resetDemo }

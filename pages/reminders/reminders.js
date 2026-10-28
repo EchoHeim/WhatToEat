@@ -20,10 +20,13 @@ Page({
     cloudHint: '',
     loading: true
   },
-  async onShow() {
-    await store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
+  onShow() {
+    // 先画本地缓存；云环境自检和同步都放后台，不挡首屏
     this.refresh()
     this.checkCloud()
+    store.syncFromCloud()
+      .then(synced => { if (synced) this.refresh() })
+      .catch(error => console.error('云同步失败，使用本地数据', error))
   },
   async checkCloud() {
     const result = await store.checkCloudReady()

@@ -12,6 +12,8 @@ App({
     }
   },
   globalData: {
-    store
+    store,
+    /** 从记录页跳去新建菜品时，存下新菜 id，回来后自动选中 */
+    pendingDishId: ''
   }
 })

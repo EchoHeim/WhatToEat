@@ -3,9 +3,9 @@
   <view class="title-row"><view><view class="page-title">吃饭日历</view><view class="muted count">吃了什么、心情如何，都归到一天里</view></view><button class="add-btn" bindtap="addToday">＋ 记一餐</button></view>
 
   <view class="calendar card">
-    <view class="month-head"><text bindtap="prevMonth">‹</text><text class="month-title">{{monthTitle}}</text><text bindtap="nextMonth">›</text></view>
+    <view class="month-head"><text class="month-arrow {{canPrev ? '' : 'disabled'}}" bindtap="prevMonth">‹</text><text class="month-title">{{monthTitle}}</text><text class="month-arrow {{canNext ? '' : 'disabled'}}" bindtap="nextMonth">›</text></view>
     <view class="week-row"><text wx:for="{{weeks}}" wx:key="*this">{{item}}</text></view>
-    <view class="day-grid"><view wx:for="{{cells}}" wx:key="key" class="day {{item.empty ? 'empty-day' : ''}} {{item.hasMood ? 'with-mood' : ''}} {{selectedDate === item.date ? 'selected' : ''}}" data-date="{{item.date}}" bindtap="selectDate"><text>{{item.day}}</text><text wx:if="{{item.mark}}" class="day-mark">{{item.mark}}</text></view></view>
+    <view class="day-grid"><view wx:for="{{cells}}" wx:key="key" class="day {{item.empty ? 'empty-day' : ''}} {{item.future ? 'future' : ''}} {{item.hasMood ? 'with-mood' : ''}} {{selectedDate === item.date ? 'selected' : ''}}" data-date="{{item.date}}" bindtap="selectDate"><view class="day-num {{item.isToday ? 'is-today' : ''}}"><text>{{item.day}}</text></view><text wx:if="{{item.mark}}" class="day-mark">{{item.mark}}</text></view></view>
   </view>
 
   <view wx:if="{{todayEmpty}}" class="today-hint card" bindtap="openTodayCheckin">
@@ -28,7 +28,7 @@
       </view>
       <view wx:if="{{item.note}}" class="day-note" data-date="{{item.date}}" bindtap="openCheckin">{{item.note}}</view>
       <view wx:if="{{item.meals.length}}" class="meal-list">
-        <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal" data-id="{{meal.id}}" bindlongpress="removeRecord">
+        <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal" data-id="{{meal.id}}" bindtap="editRecord" bindlongpress="removeRecord">
           <text class="meal-emoji">{{meal.emoji}}</text>
           <text class="meal-type">{{meal.mealType}}</text>
           <text class="meal-name">{{meal.dishName}}</text>
@@ -40,5 +40,5 @@
   </view>
   <view wx:else class="empty card">这个月还是一片空白<br/><text>记下第一餐，或者先写一句心情</text></view>
   <view wx:if="{{days.length}}" class="more-row" bindtap="openCheckins">连续天数与本月心情分布 ›</view>
-  <view wx:if="{{days.length}}" class="tip-line">点日期或心情修改 · 长按某一餐删除</view>
+  <view wx:if="{{days.length}}" class="tip-line">点日期或心情修改 · 点某一餐编辑、长按删除</view>
 </view></scroll-view>

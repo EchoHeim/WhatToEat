@@ -2,7 +2,8 @@ const store = require('../../utils/store')
 const tabbar = require('../../utils/tabbar')
 
 Page({
-  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', storageText: '', appVersion: 'Ver0.0.1', tabbar: tabbar.create(3) },
+  // appVersion 要跟 `cli upload -v` 传的版本号一致，发版时一起改
+  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', storageText: '', appVersion: 'Ver0.0.8', tabbar: tabbar.create(3) },
   onTabTap(e) { tabbar.go(e) },
   onShow() {
     this.refresh()

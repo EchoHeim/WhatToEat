@@ -37,3 +37,15 @@ page { height: 100vh; display: flex; flex-direction: column; }.scrollarea { flex
 .confetti-bit.d12{animation:cf-d12 .95s cubic-bezier(.14,.68,.3,1) both}
 @keyframes cf-d12{0%{opacity:0;transform:translate(0,0) rotate(0deg) scale(.4)}10%{opacity:1}52%{transform:translate(137rpx,-99rpx) rotate(-150deg) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(196rpx,-87rpx) rotate(-300deg) scale(.9)}}
 @keyframes card-pop{0%{transform:scale(.94)}55%{transform:scale(1.015)}100%{transform:scale(1)}}
+/* 最近吃过：首页的「一键再记一次」。记一餐表单要点五次，
+   而「昨天吃了什么、今天再来一次」是最高频的路径，这里给个直达入口。 */
+.recent-block{margin-top:38rpx}
+.recent-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16rpx}
+.recent-hint{color:#B4B0A6;font-size:21rpx}
+.recent-grid{display:flex;flex-wrap:wrap;gap:12rpx}
+.recent-chip{display:flex;align-items:center;gap:10rpx;padding:12rpx 22rpx 12rpx 16rpx;background:#FFFDF8;border:1rpx solid #F0EAE0;border-radius:999rpx}
+.recent-chip:active{background:#F7F2E9}
+.recent-emoji{font-size:32rpx;line-height:1}
+.recent-body{display:flex;flex-direction:column;gap:2rpx}
+.recent-name{font-size:25rpx;font-weight:600;color:#292824}
+.recent-ago{margin-top:2rpx;color:#A9A59B;font-size:19rpx}

@@ -1,0 +1,62 @@
+<navigation-bar title="饮食报告" back="{{true}}" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad">
+  <view class="month-head">
+    <text class="month-arrow" bindtap="prevMonth">‹</text>
+    <view class="month-center">
+      <text class="month-title">{{report.monthLabel}}</text>
+      <text wx:if="{{showBackToMonth}}" class="month-back" bindtap="backToMonth">今</text>
+    </view>
+    <text class="month-arrow {{canNext ? '' : 'disabled'}}" bindtap="nextMonth">›</text>
+  </view>
+
+  <block wx:if="{{report.hasData}}">
+    <view class="stat-row">
+      <view class="stat card"><view class="stat-value">{{report.mealCount}}</view><view class="stat-label">餐</view></view>
+      <view class="stat card"><view class="stat-value">{{report.dayCount}}</view><view class="stat-label">天有记录</view></view>
+      <view class="stat card"><view class="stat-value">{{report.averageScore || '—'}}</view><view class="stat-label">平均分</view></view>
+    </view>
+    <view class="delta-line">{{deltaText}}</view>
+
+    <view class="card block">
+      <view class="block-title">最常吃</view>
+      <view wx:for="{{report.topDishes}}" wx:key="name" class="top-row">
+        <text class="top-rank">{{index + 1}}</text>
+        <text class="top-emoji">{{item.emoji}}</text>
+        <text class="top-name">{{item.name}}</text>
+        <text class="top-score">★ {{item.scoreText}}</text>
+        <text class="top-count">{{item.count}} 次</text>
+      </view>
+    </view>
+
+    <view class="card block">
+      <view class="block-title">评分走势</view>
+      <view class="bars">
+        <view wx:for="{{report.trend}}" wx:key="date" class="bar-col">
+          <view class="bar {{item.height >= 80 ? 'good' : (item.height >= 60 ? 'mid' : 'low')}}" style="height: {{item.height}}%"></view>
+        </view>
+      </view>
+      <view class="chart-foot"><text>1 日</text><text wx:if="{{report.bestDay}}" class="best">最高 {{report.bestDay.scoreText}} · {{report.bestDay.date}}</text><text>{{report.monthDays}} 日</text></view>
+    </view>
+
+    <view class="card block">
+      <view class="block-title">餐次分布</view>
+      <view wx:for="{{report.byMeal}}" wx:key="name" class="dist-row">
+        <text class="dist-name">{{item.name}}</text>
+        <view class="dist-track"><view class="dist-fill" style="width: {{item.percent}}%"></view></view>
+        <text class="dist-value">{{item.count}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{report.byTaste.length}}" class="card block">
+      <view class="block-title">口味偏好</view>
+      <view wx:for="{{report.byTaste}}" wx:key="name" class="dist-row">
+        <text class="dist-name">{{item.name}}</text>
+        <view class="dist-track"><view class="dist-fill taste" style="width: {{item.percent}}%"></view></view>
+        <text class="dist-value">{{item.count}}</text>
+      </view>
+      <view class="block-note">按菜品标签统计，只有打了「辣 / 清淡 / 减脂 / 高蛋白 / 快手」的菜才算</view>
+    </view>
+  </block>
+
+  <view wx:else class="empty card">这个月还没有记录<br/><text class="empty-sub">记过一餐之后，这里会显示最常吃、评分走势和口味偏好</text></view>
+</view></scroll-view>

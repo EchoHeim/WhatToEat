@@ -66,9 +66,8 @@ Desktop.ini
 *.orig
 ~$*
 
-# Local agent workspace: memory logs are tracked, the rest stays local
-# (icon scripts and their source images, screenshots)
-# tests/ 是要进仓库的：7 套回归测试，README 里写了怎么跑
+# Local agent workspace: only memory logs are tracked, the rest stays local
+# (icon scripts and their source images, screenshots, regression tests)
 .workbuddy/*
 !.workbuddy/memory/
 

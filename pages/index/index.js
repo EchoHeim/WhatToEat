@@ -1,5 +1,6 @@
 const store = require('../../utils/store')
 const checkinLib = require('../../utils/checkin')
+const pick = require('../../utils/pick')
 const tabbar = require('../../utils/tabbar')
 
 function daysAgo(dateText) {
@@ -9,6 +10,16 @@ function daysAgo(dateText) {
   if (diff === 0) return '今天吃过'
   if (diff === 1) return '昨天吃过'
   return `${diff} 天前吃过`
+}
+
+/** chip 上的短文案：位置小，「3 天前」比「3 天前吃过」省一半宽 */
+function shortAgo(dateText, todayText) {
+  if (!dateText) return ''
+  const diff = pick.daysSince(dateText, todayText)
+  if (diff === 0) return '今天'
+  if (diff === 1) return '昨天'
+  if (diff < 30) return `${diff} 天前`
+  return `${Math.floor(diff / 30)} 个月前`
 }
 
 /** 彩带配色：跟首页的暖色调对齐，掺一点草绿 */
@@ -40,6 +51,8 @@ Page({
   data: {
     dish: null, candidates: 0, filterOpen: false, rolling: false,
     burst: false, confetti: [],
+    // 最近吃过的那几道：首页的「一键再记一次」入口，把记一餐从 5 步压到 2 步
+    recentDishes: [],
     filters: { meal: '', category: '', eatType: '', price: '' },
     meals: store.MEALS, categories: store.CATEGORIES, eatTypes: store.EAT_TYPES, prices: store.PRICES,
     filterCount: 0,
@@ -56,15 +69,61 @@ Page({
   },
   /** 刷新设置与签到条，再让菜品落在「记住的那道」上 */
   render() {
+    // 一次 render 里每份数据只反序列化一次，往下传。
+    // 以前是 getSettings ×2、getDishes ×2、getRecords ×1、getCheckins ×1，
+    // 数据攒到几千条之后切一次 tab 就有明显的黏手感
     const settings = store.getSettings()
+    const dishes = store.getDishes()
+    const records = store.getRecords()
     const filters = this.data.filters
     this.setData({
       settings,
       filters,
       filterCount: Object.values(filters).filter(Boolean).length,
-      checkin: this.checkinView()
+      checkin: this.checkinView(),
+      recentDishes: this.recentViews(dishes, records, settings)
     })
-    this.settleDish()
+    this.settleDish(dishes)
+  },
+  /**
+   * 最近吃过的 6 道，按记录时间倒序去重。
+   * 记录本身是日期倒序的，扫到第六个不同的菜就停——不用给整份记录排序。
+   * 六道刚好铺两行（每行三个），再多就顶到屏幕外了。
+   */
+  recentViews(inputDishes, inputRecords, inputSettings) {
+    // 参数由 render 传进来；单独调用（比如测试）时自己读
+    const settings = inputSettings || store.getSettings()
+    const dishes = inputDishes || store.getDishes()
+    const records = inputRecords || store.getRecords()
+    const todayText = checkinLib.today()
+    const dishMap = new Map(dishes.map(item => [item.id, item]))
+    const seen = new Set()
+    const list = []
+    for (const record of records) {
+      if (!record || !record.dishId || seen.has(record.dishId)) continue
+      const dish = dishMap.get(record.dishId)
+      // 菜品已被删掉的记录跳过：点进去也记不了这道菜
+      if (!dish) continue
+      seen.add(record.dishId)
+      list.push({
+        id: dish.id,
+        name: dish.name,
+        emoji: dish.emoji || '🍽️',
+        agoText: shortAgo(record.date, todayText),
+        mealText: record.mealType || settings.defaultMeal
+      })
+      if (list.length >= 6) break
+    }
+    return list
+  },
+  /** 点「最近吃过」里的一道：直接进记录页，菜品 / 餐次 / 日期都预填好 */
+  quickLog(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+    const meal = this.data.filters.meal || store.getSettings().defaultMeal || '午餐'
+    wx.navigateTo({
+      url: `/pages/record-form/record-form?dishId=${id}&meal=${encodeURIComponent(meal)}&date=${checkinLib.today()}`
+    })
   },
   /**
    * 菜品只在两种情况下换：点「帮我选一个」，或者记住的那道彻底不可用
@@ -72,13 +131,15 @@ Page({
    * 重进首页、切 tab、云同步回来都不换；刚把它记成吃过也不换——
    * 「避开最近吃过」只约束抽签，卡片上本来就有「今天吃过」。
    */
-  settleDish() {
+  settleDish(inputDishes) {
     // 摇骰子动画期间别插一脚，等它自己落定
     if (this.data.rolling) return
     const wantedId = this.data.dish ? this.data.dish.id : store.getHomePick()
-    const keptPool = this.getCandidates({ ignoreRecent: true })
+    // 菜库由 render 传进来，抽签与找菜共用同一份
+    const dishes = inputDishes || store.getDishes()
+    const keptPool = this.getCandidates({ ignoreRecent: true, dishes })
     const kept = keptPool.find(item => item.id === wantedId)
-    if (!kept) return this.pick()
+    if (!kept) return this.pick({ dishes })
     // 还是同一道菜，但从库里重取一次：评分 / 吃过次数可能被别的页面改过
     this.setData({ dish: this.formatDish(kept), candidates: keptPool.length, rolling: false })
   },
@@ -90,7 +151,10 @@ Page({
       const others = list.filter(item => item.id !== this.data.dish.id)
       if (others.length) pool = others
     }
-    const result = pool[Math.floor(Math.random() * pool.length)]
+    // 按权重抽：评分高、久没吃的更容易中；「允许重复」时最近吃过的降权而非直接入选
+    const settings = store.getSettings()
+    const result = pick.pickWeighted(pool, checkinLib.today(), { recentDays: Number(settings.recentDays) || 0 })
+    if (!result) return this.setData({ dish: null, candidates: 0, rolling: false })
     store.saveHomePick(result.id)
     const celebrate = Boolean(options && options.celebrate)
     this.setData({
@@ -125,7 +189,17 @@ Page({
       sub
     }
   },
-  openCheckins() { wx.navigateTo({ url: '/pages/checkins/checkins' }) },
+  /**
+   * 顶部签到条：按「今天签没签」分流。
+   * 已经签了就没必要再进表单，直接去看记录（列表页里点某天还能回头改）；
+   * 没签就直接进今天那张表单，少一步。
+   */
+  openCheckin() {
+    const url = this.data.checkin.checked
+      ? '/pages/checkins/checkins'
+      : `/pages/checkin-form/checkin-form?date=${checkinLib.today()}`
+    wx.navigateTo({ url })
+  },
   onHide() { this.stopRolling() },
   onUnload() { this.stopRolling() },
   toggleFilters() { this.setData({ filterOpen: !this.data.filterOpen }) },
@@ -146,11 +220,15 @@ Page({
     const { meal, category, eatType, price } = this.data.filters
     const settings = store.getSettings()
     const recentLimit = Date.now() - Number(settings.recentDays || 0) * 86400000
-    let list = store.getDishes().filter(item => item.enableRandom !== false)
+    // dishes 可由调用方传入：一次抽签会问两遍候选，没必要反序列化两遍菜库
+    const source = options && options.dishes ? options.dishes : store.getDishes()
+    let list = source.filter(item => item.enableRandom !== false)
       .filter(item => !meal || (item.mealTypes || []).includes(meal))
       .filter(item => !category || item.category === category)
       .filter(item => !eatType || (item.eatTypes || []).includes(eatType))
       .filter(item => !price || item.price === price)
+    // allowRepeat=false 时硬过滤（用户预期就是「最近吃过的不出现」）；
+    // =true 时不在这里排除，改由 pick 的权重压一档——允许重复不等于优先重复
     if (!(options && options.ignoreRecent) && !settings.allowRepeat && settings.recentDays > 0) {
       list = list.filter(item => !item.lastEatDate || new Date(`${item.lastEatDate}T23:59:59`).getTime() < recentLimit)
     }
@@ -161,7 +239,8 @@ Page({
   },
   /** 立刻重抽一道（筛选变化、点骰子落定时用），会覆盖记住的那道 */
   pick(options) {
-    this.landDish(this.getCandidates(), options)
+    // options 要透传：里面可能带着调用方已经读好的 dishes，别在这里又反序列化一遍菜库
+    this.landDish(this.getCandidates(options), options)
   },
   stopRolling() {
     if (this.rollTimer) clearTimeout(this.rollTimer)

@@ -1,7 +1,6 @@
 /**
  * 提醒计算引擎
  * 纯函数实现，不依赖任何小程序 API，小程序端与云函数端共用同一份代码。
- *
  * ⚠️ 本文件是 utils/reminder.js 的副本：修改请改 utils/reminder.js，然后复制到这里覆盖。
  *    云端副本：cloudfunctions/reminderPush/lib/reminder.js
  */
@@ -28,10 +27,14 @@ const KIND_ANNIVERSARY = 'anniversary'
 
 const REPEATS = [
   { value: 'none', label: '不重复', hint: '只在指定日期提醒一次' },
-  { value: 'daily', label: '每天', hint: '从起始日期起每天提醒' },
+  { value: 'daily', label: '每天', hint: '从起始日期起每 N 天提醒一次' },
   { value: 'monthly', label: '每月', hint: '每个月的同一天提醒' },
   { value: 'yearly', label: '每年', hint: '每年的同一天提醒' }
 ]
+
+/** 「每 N 天」的步长范围：1 就是每天，上限一年 */
+const MIN_INTERVAL = 1
+const MAX_INTERVAL = 365
 
 const ADVANCE_OPTIONS = [
   { value: 0, label: '当天' },
@@ -85,6 +88,26 @@ function repeatLabel(value) {
   return found ? found.label : REPEATS[0].label
 }
 
+/**
+ * 「每 N 天」的步长。老数据没有 intervalDays，一律当 1（= 每天）；
+ * 非法值（0 / 负数 / 小数 / 超上限）就地夹回合法区间，别让坏数据把循环算成死循环。
+ */
+function intervalDays(reminder) {
+  const raw = Number(reminder && reminder.intervalDays)
+  if (!Number.isFinite(raw)) return MIN_INTERVAL
+  return Math.min(MAX_INTERVAL, Math.max(MIN_INTERVAL, Math.round(raw)))
+}
+
+/** 循环方式文案：daily 且步长大于 1 时说「每 N 天」，否则沿用 REPEATS 的标签 */
+function repeatText(reminder) {
+  const repeat = (reminder && reminder.repeat) || 'none'
+  if (repeat === 'daily') {
+    const step = intervalDays(reminder)
+    return step > 1 ? `每 ${step} 天` : '每天'
+  }
+  return repeatLabel(repeat)
+}
+
 function calendarLabel(value) {
   const found = CALENDARS.find(item => item.value === value)
   return found ? found.label : CALENDARS[0].label
@@ -124,15 +147,26 @@ function eventText(reminder) {
   return baseDate(reminder)
 }
 
+/**
+ * 每 N 天一次的日期序列。
+ * 节奏以基准日（起始日期）为准：10-01 建、N=3 → 10-01 / 10-04 / 10-07…
+ * 查询窗口从 10-02 开始时，第一条是 10-04，不能拿窗口起点重新起算，
+ * 否则同一个提醒在不同窗口里算出来的日子会不一样。
+ */
 function dailyOccurrences(reminder, startDate, endDate) {
   const base = baseDate(reminder)
+  const step = intervalDays(reminder)
   const from = base && base > startDate ? base : startDate
   const result = []
-  let cursor = from
+  let cursor = base || from
+  if (base && cursor < from) {
+    const gap = diffDays(cursor, from)
+    cursor = addDays(cursor, Math.ceil(gap / step) * step)
+  }
   let guard = 0
   while (cursor <= endDate && guard++ < 4000) {
     result.push(cursor)
-    cursor = addDays(cursor, 1)
+    cursor = addDays(cursor, step)
   }
   return result
 }
@@ -299,6 +333,22 @@ function nextOccurrence(reminder, fromDate) {
   return list.length ? list[0] : ''
 }
 
+/** 规范成 HH:MM，非法返回空串（老数据可能是 9:00） */
+function normalizeTime(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim())
+  if (!match) return ''
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  if (hour > 23 || minute > 59) return ''
+  return `${pad(hour)}:${pad(minute)}`
+}
+
+/** 本机当前时刻 HH:MM：列表页靠它判断「今天这条过没过点」 */
+function nowTime() {
+  const now = new Date()
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
 /** 距离提示：「今天」「明天」「3 天后」 */
 function relativeText(days) {
   if (days === null || days === undefined) return ''
@@ -342,12 +392,21 @@ function anniversaryHit(reminder, dateText) {
   return date.slice(5) === dateText.slice(5)
 }
 
-/** 列表页用的展示模型 */
-function describe(reminder, fromDate) {
+/**
+ * 列表页用的展示模型。
+ * nowText 由调用方传入（默认本机当前时刻），方便测试固定时间。
+ * 一次性提醒触发日就是今天、但时刻已经过去 → 今天不会再响，标记 expired；
+ * 循环提醒不受影响（它明天/下个月还会再响）。
+ */
+function describe(reminder, fromDate, nowText) {
   const start = isDateText(fromDate) ? fromDate : today()
   const trigger = nextTrigger(reminder, start)
   const occurrence = nextOccurrence(reminder, start)
   const days = trigger ? diffDays(start, trigger) : null
+  const timeText = normalizeTime(reminder.time) || DEFAULT_TIME
+  const active = reminder.enabled !== false && Boolean(trigger)
+  const once = (reminder.repeat || 'none') === 'none'
+  const expired = Boolean(trigger) && trigger === start && once && (normalizeTime(nowText) || nowTime()) > timeText
   return {
     reminder,
     trigger,
@@ -355,12 +414,14 @@ function describe(reminder, fromDate) {
     days,
     triggerText: trigger ? relativeText(days) : '已结束',
     dateText: trigger === start ? '今天' : trigger,
+    statusText: expired ? '已过期' : (active ? (trigger === start ? '今天' : trigger) : '已结束'),
     eventLabel: occurrence ? (reminder.calendar === 'lunar' ? eventText(reminder) : occurrence) : '',
     calendarText: calendarLabel(reminder.calendar),
-    repeatText: repeatLabel(reminder.repeat),
+    repeatText: repeatText(reminder),
     advanceText: advanceText(reminder),
-    timeText: reminder.time || DEFAULT_TIME,
-    active: reminder.enabled !== false && Boolean(trigger)
+    timeText,
+    active,
+    expired
   }
 }
 
@@ -372,6 +433,8 @@ module.exports = {
   REPEATS,
   ADVANCE_OPTIONS,
   MAX_ADVANCE,
+  MIN_INTERVAL,
+  MAX_INTERVAL,
   DEFAULT_TIME,
   pad,
   today,
@@ -380,6 +443,8 @@ module.exports = {
   isDateText,
   parseDate,
   repeatLabel,
+  repeatText,
+  intervalDays,
   calendarLabel,
   advanceList,
   advanceText,
@@ -392,6 +457,8 @@ module.exports = {
   advanceForTrigger,
   nextTrigger,
   nextOccurrence,
+  normalizeTime,
+  nowTime,
   relativeText,
   describe,
   isAnniversary,

@@ -8,7 +8,6 @@
       <view class="segment">
         <view wx:for="{{kinds}}" wx:key="value" class="seg {{kind === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="kindChange">{{item.label}}</view>
       </view>
-      <view class="field-hint">{{kind === 'anniversary' ? '纪念日不推送，只在日历上把那一天标成紫色' : '提醒会按时间推送（已授权微信推送的话）'}}</view>
     </view>
 
     <view class="field">
@@ -16,7 +15,7 @@
       <input class="text-input" placeholder="{{kind === 'anniversary' ? '例如：结婚纪念日、奶奶生日' : '例如：奶奶生日、交房租、每天吃药'}}" value="{{content}}" bindinput="contentChange" maxlength="40" />
     </view>
 
-    <view class="field">
+    <view wx:if="{{kind === 'anniversary' || legacyLunar}}" class="field">
       <view class="label">日历</view>
       <view class="segment">
         <view wx:for="{{calendars}}" wx:key="value" class="seg {{calendar === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="calendarChange">{{item.label}}</view>
@@ -24,8 +23,8 @@
     </view>
 
     <view class="field">
-      <view class="label">{{calendar === 'lunar' ? '农历日期' : '日期'}}</view>
-      <picker wx:if="{{calendar === 'solar'}}" mode="date" value="{{solarDate}}" bindchange="solarDateChange"><view class="picker-value"><text>{{solarDate}}</text><text>选择 ›</text></view></picker>
+      <view class="label">{{lunarMode ? '农历日期' : '日期'}}</view>
+      <picker wx:if="{{!lunarMode}}" mode="date" value="{{solarDate}}" bindchange="solarDateChange"><view class="picker-value"><text>{{solarDate}}</text><text>选择 ›</text></view></picker>
       <block wx:else>
         <view class="two-col">
           <picker range="{{lunarMonthLabels}}" value="{{lunarMonthIndex}}" bindchange="lunarMonthChange"><view class="small-picker">{{lunarMonthLabels[lunarMonthIndex]}} ›</view></picker>
@@ -38,7 +37,7 @@
     <view wx:if="{{kind === 'anniversary'}}" class="field">
       <view class="label">循环方式</view>
       <view class="fixed-line">每年</view>
-      <view class="field-hint">纪念日每年都有：公历按同一天，农历按农历同一天</view>
+      <view class="field-hint">纪念日每年都有，按公历同月同日</view>
     </view>
 
     <view wx:else class="field">
@@ -46,7 +45,16 @@
       <view class="chip-row">
         <view wx:for="{{repeats}}" wx:key="value" class="chip {{repeat === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="repeatChange">{{item.label}}</view>
       </view>
-      <view class="field-hint">{{dailyRepeat ? '每天都会提醒，无需设置提前天数' : '选择每月/每年后，会在每个周期的同一天提醒'}}</view>
+      <view wx:if="{{dailyRepeat}}" class="interval-row">
+        <text class="interval-label">每</text>
+        <view class="stepper">
+          <view class="step-btn" hover-class="step-btn-hover" data-delta="-1" bindtap="intervalStep">−</view>
+          <input class="step-input" type="number" value="{{intervalDays}}" bindinput="intervalInput" bindblur="intervalBlur" />
+          <view class="step-btn" hover-class="step-btn-hover" data-delta="1" bindtap="intervalStep">＋</view>
+        </view>
+        <text class="interval-label">天提醒一次</text>
+      </view>
+      <view class="field-hint">{{dailyRepeat ? dailyHint : '选择每月/每年后，会在每个周期的同一天提醒'}}</view>
     </view>
 
     <view wx:if="{{kind === 'anniversary'}}" class="field">
@@ -69,11 +77,13 @@
       <picker mode="time" value="{{time}}" bindchange="timeChange"><view class="picker-value"><text>{{time}}</text><text>选择 ›</text></view></picker>
     </view>
 
+    <view class="field">
+      <view class="label">备注<text class="label-extra">选填</text></view>
+      <input class="text-input" placeholder="填了会显示在推送「提醒内容」最前面，如：带上身份证" value="{{remark}}" bindinput="remarkChange" maxlength="20" />
+    </view>
+
     <view wx:if="{{kind === 'reminder'}}" class="field no-border">
-      <view class="switch-row">
-        <view class="switch-text"><text class="label no-margin">同时发送微信提醒</text><text class="field-hint">{{pushReady ? '微信订阅一次可推送一条，收到后需再次开启' : '未配置订阅消息模板 ID，仅应用内提醒'}}</text></view>
-        <switch checked="{{wantPush}}" color="#E85D3F" bindchange="wantPushChange" />
-      </view>
+      <view class="field-hint">{{pushReady ? '会发送微信提醒，订阅额度用完需再次开启' : '未配置订阅消息模板 ID，仅应用内提醒'}}</view>
     </view>
     <view wx:else class="field no-border">
       <view class="field-hint">{{notify ? '到期当天（含提前节点）会发微信提醒' : '纪念日不发送微信提醒，只在日历上标记'}}</view>
@@ -81,6 +91,16 @@
   </view>
 
   <view class="preview card"><text class="preview-icon">{{kind === 'anniversary' ? '🎉' : '⏰'}}</text><text class="preview-text">{{previewText}}</text></view>
+
+  <view wx:if="{{pushPreview.length}}" class="notify-card card">
+    <view class="notify-head"><text class="notify-title">微信里会收到这样一条</text><text class="notify-badge">订阅消息</text></view>
+    <view wx:for="{{pushPreview}}" wx:key="key" class="notify-row {{index === pushPreview.length - 1 ? 'last' : ''}}">
+      <text class="notify-label">{{item.label}}</text>
+      <text class="notify-value">{{item.value || '—'}}</text>
+      <text class="notify-source">{{item.source}}</text>
+    </view>
+    <view class="notify-foot">模板是微信公共库的「日程提醒」（3 个关键词）：钟点跟在「提醒内容」里，日期单独占「日程时间」一行，右边小字是每行的来源。</view>
+  </view>
 
   <button class="primary-btn save-btn" bindtap="save">{{kind === 'anniversary' ? (id ? '保存修改' : '创建纪念日') : (id ? '保存修改' : '创建提醒')}}</button>
   <button wx:if="{{id}}" class="ghost-btn delete-btn" bindtap="remove">{{kind === 'anniversary' ? '删除这个纪念日' : '删除这条提醒'}}</button>

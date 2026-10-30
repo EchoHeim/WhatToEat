@@ -10,7 +10,8 @@
     "pages/reminders/reminders",
     "pages/reminder-form/reminder-form",
     "pages/checkins/checkins",
-    "pages/checkin-form/checkin-form"
+    "pages/checkin-form/checkin-form",
+    "pages/report/report"
   ],
   "window": {
     "navigationBarTextStyle": "black",

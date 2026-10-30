@@ -60,6 +60,9 @@ Page({
       id: editing ? editing.id : '',
       pageTitle: editing ? '修改这一餐' : '记录一餐',
       saveText: editing ? '保存修改' : '保存这餐',
+      // 页面模块常驻内存，data 里那份 today 是首次加载时算的，跨天就过期了。
+      // 这里用 onLoad 现算的值覆盖，否则「今天」比实际早一天，保存会被未来日期校验拦住
+      today: todayText,
       dishes,
       // 菜品后来被删掉时仍保留记录里的快照，不逼用户重新选一道菜
       dishId: wantedDishId || '',
@@ -87,8 +90,7 @@ Page({
     const pendingId = app.globalData ? app.globalData.pendingDishId : ''
     if (app.globalData) app.globalData.pendingDishId = ''
     const chosen = (pendingId && dishes.find(item => item.id === pendingId)) || dishes.find(item => item.id === this.data.dishId) || null
-    // 没选中任何菜时保留当前值：编辑一条菜品已被删除的记录，快照名字不能被清空
-    this.setData({
+    const patch = {
       dishes,
       dishId: chosen ? chosen.id : this.data.dishId,
       dishName: chosen ? chosen.name : this.data.dishName,
@@ -97,7 +99,17 @@ Page({
       dishKeyword: '',
       visibleDishes: dishes.slice(0, SHEET_PAGE_SIZE).map(withMeta),
       dishMatchTotal: dishes.length
-    })
+    }
+    // 表单可能挂在后台过夜：跨天后把「今天」推到新的一天。
+    // 新增态且日期还停在旧的今天（用户没手动改过）时一起跟过去，
+    // 否则凌晨记的这一餐会被悄悄记到昨天。
+    const todayText = today()
+    if (this.data.today !== todayText) {
+      patch.today = todayText
+      if (!this.data.id && this.data.date === this.data.today) patch.date = todayText
+    }
+    // 没选中任何菜时保留当前值：编辑一条菜品已被删除的记录，快照名字不能被清空
+    this.setData(patch)
   },
   toggleDishSheet() {
     if (this.data.dishSheetOpen) return this.setData({ dishSheetOpen: false })
@@ -132,17 +144,30 @@ Page({
     if (!this.data.dishId) return wx.showToast({ title: '请先选择或新建一道菜品', icon: 'none' })
     if (this.data.date > this.data.today) return wx.showToast({ title: '不能记录未来日期', icon: 'none' })
     wx.showLoading({ title: '保存中' })
+    let saved = false
     try {
       const payload = { dishId: this.data.dishId, dishName: this.data.dishName, date: this.data.date, time: this.data.time, mealType: this.data.mealType, score: this.data.score, status: this.data.status, remark: this.data.remark.trim() }
       if (this.data.id) payload.id = this.data.id
       await store.saveRecord(payload)
+      saved = true
       wx.showToast({ title: this.data.id ? '改好了' : '这一餐记下啦' })
     } catch (error) {
       console.error(error)
-      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+      // 分片写满不是网络问题，重试一百次也一样，必须给一条能照着做的出路
+      if (error && error.storageFull) {
+        wx.showModal({
+          title: '这一年的记录满了',
+          content: `${error.year || '本机'} 这一年的记录已经到单键存储上限。\n请到「我的 → 导出数据」备份，再删掉一些旧记录后重试。`,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      } else {
+        wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+      }
     } finally {
       wx.hideLoading()
     }
-    setTimeout(() => wx.navigateBack(), 650)
+    // 没存上就别退页面，否则用户以为存好了、回来找不到这一餐
+    if (saved) setTimeout(() => wx.navigateBack(), 650)
   }
 })

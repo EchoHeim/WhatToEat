@@ -2,105 +2,76 @@
 
 ## 项目身份
 - 「今天吃什么」小程序，AppID `wxc796aa4a0b4af49e`，云开发环境 `cloud1-d7gua1dxyb865738c`（个人版，ap-shanghai，2027-02 到期）。
-- 原生 JS + Skyline 渲染 + glass-easel，全局自定义导航栏。**Skyline 对 CSS Grid 支持不完整，布局一律用 Flex**（日历、签到条带都是七等分 flex）。
+- 原生 JS + Skyline + glass-easel，全局自定义导航栏。**Skyline 的 CSS Grid 不完整，布局一律 Flex**。
 
-## 云端管理方式（重要）
-- 本机有 CloudBase CLI（`tcb`，3.8.9，位于 `~/.workbuddy/binaries/node/cli-connector-packages/`）**已登录**，可以直接管理云环境，不必让用户去控制台点鼠标。
-- 常用：
-  - 列集合 `tcb db nosql execute -e <envId> --command '[{"TableName":"_","CommandType":"COMMAND","Command":"{\"listCollections\":1,\"nameOnly\":true}"}]'`
-  - 建集合 `"{\"create\":\"X\"}"`
-  - 设权限 `tcb api tcb ModifyDatabaseACL --body '{"EnvId":"...","CollectionName":"X","AclTag":"PRIVATE"}'`（PRIVATE = 仅创建者可读写）
-  - 核对 `tcb api tcb DescribeDatabaseACL`
-- `tcb db nosql execute` **必须带 `-e <envId>`**，项目没有 `.cloudbase/project.json`，CLI 不会自动识别环境。
+## 目录硬约束（2026-10-29 立规矩）
+- **`custom-tab-bar/` 必须在项目根目录**（4 个文件齐全）。`tabBar.custom: true` 时框架固定去代码根目录找，放进 `components/` 报 `Component is not found`，**无配置项可改**。本项目里它是 0 尺寸空壳，真悬浮条由各 tab 页用模板自渲染（Skyline 下组件宿主的命中区与 fixed 不一致，组件里的条子点不动）。
+- **tabBar 模板/样式分开放**：`styles/tabbar.wxml`（4 个 tab 页 `<import src="/styles/tabbar.wxml" />`）+ `styles/tabbar.wxss`（`@import "../../styles/tabbar.wxss"`）。搬模板必须同步改 4 个 import，断链后悬浮条直接消失。
+- **`cli preview`/`upload` 不校验运行时引用**（wxml 断链、删 custom-tab-bar 都照样 `√`）。**上传成功 ≠ 功能正常**：改路径后要 `test -f` 全部 import + 确认根目录 custom-tab-bar + `preview --qr-format image` 扫码验。
 
-## 数据层约定（2026-10-29 重构后）
-- `utils/store.js` 是唯一数据入口：**本地先写、云端排队补**，云失败不丢数据、不阻塞界面。
-- 集合与权限全部「仅创建者可读写」（ACL `PRIVATE`）：`dishes` / `meal_records` / `user_settings` / `reminders` / `daily_checkins` / `error_logs`（异常上报用，2026-10-29 新建）。
-- 四件套缺一不可，**顺序也是铁律**：
-  1. **云写队列** `enqueueCloud(ctx, task)`——本地写完立刻返回，云端写串行排队；任务永远传「最新的本地版本」；失败走 `onCloudError` 回调（app.js 注册）提示「已存本机，云同步待重试」。页面里的 `await store.saveX()` 现在立刻返回，**别再 await 云端结果**。
-  2. **待上云清单 outbox**（`wte_dirty_v1`）——本地写入先 `markDirty`，云写成功才 `clearDirty`；增量拉取看不见「本机独有数据」，靠它在同步开头补传。断网/杀进程都不怕。
-  3. **删除墓碑**（`wte_tombstones_v1`）——本地删除那一刻就记（不是云写失败时），同步开头 `applyTombstones` 先清云端，防止「删掉的记录复活」。
-  4. **增量同步**（`wte_sync_stamps_v1`）——每集合一个 `updatedAt` 水位，首次全量、之后 `gte(水位)` 增量；`mergeIncremental` 只处理变过的，本地没被提到的条目原样留着。
-- **同步顺序**：补传 outbox → 清墓碑 → 补记额度 → 拉数据。反了就会丢本机新数据 / 复活已删记录 / 额度被盖。
-- `pullCloudData` 全量时用 `mergeLocalOnly()`：云端没有的本地条目先补传，避免「集合缺失期间存的数据被空云端覆盖」。
-- 错误提示按实际集合名生成（`tagCollection` + `describeCloudError(error, collection)`），不要再硬编码集合名。
-- **菜品聚合（eatCount / score / lastEatDate）一律按 `meal_records` 重算，禁止再用增量平均**（`dishStatsFromRecords` + `recomputeDish`）。增删改三条路径共用一套重算。
-  - `recomputeDish`（用户主动保存/删除时）会**顺带 bump 菜的 updatedAt + markDirty** → 云端那份过时会被增量同步带回来。
-  - `recomputeAllDishStats()`（每次拉完的自愈）**刻意不动 updatedAt、不反写云端**，只纠本机，避免两台设备互相覆盖的抖动。
-- `saveRecord` 带 `id` 即编辑（保留 `createdAt`，换菜时前后两道菜都回算），不带才是新增。记录编辑入口在 `pages/records` 点某一餐，长按仍是删除。
-- 设置项不要写字段白名单：`normalizeSettings()` 以 `DEFAULT_SETTINGS` 的键与类型为准。**`updatedAt` 要保留**（设置冲突比新旧用），但「加推送额度」不能 bump 它。
-- **`pushQuota` 只有云函数扣、客户端只能加**：客户端 `saveSettings` 写云时必须 `delete data.pushQuota`，加额度走 `db.command.inc` 原子自增（`flushQuotaPending`）；离线时把增量攒在 `wte_quota_pending_v1`，下次同步先补记再拉。拉取时额度一律取云端值（服务端才是记账方）。
-- 云端 `user_settings` **每个 openid 一份**（不是重复文档）；客户端统一取 `updatedAt` 最新的那份并清掉多余的（`readSettingsDoc`），防同一账号出现两份导致额度记到不同文档。
-- **页面首屏一律「先渲染本地缓存 → 后台 `syncFromCloud()` → 同步成功再 refresh」**，禁止把 `await store.syncFromCloud()` 放在首次 `setData` 之前。表单页同步回来后要用 `touched` 标记判断，别覆盖用户正在输入的内容。
-- **首页显示哪道菜要记住**：`wte_home_pick_v1`（`store.getHomePick` / `saveHomePick`）只存本机、不参与云同步，属于界面状态不是业务数据。只有点「帮我选一个」、改筛选、或记住的那道被删/停用/不符合筛选时才换；「避开最近吃过」只约束抽签，不约束记住的那道。
-- 列表页要按 id 取数据时**先建索引**（`new Map(dishes.map(d => [d.id, d]))`），别在循环里调 `store.getDish()`——那是整份菜库反序列化 + 线性查，记录页一次刷新能打上百次。
+## 数据层（`utils/store.js` 是唯一入口）
+- 本地先写、云端排队：`enqueueCloud` 串行补写，失败走 `onCloudError`（app.js 注册）提示「已存本机」。页面 `await store.saveX()` 立刻返回，**别再等云端**。
+- 四件套顺序是铁律：**补传 outbox（`wte_dirty_v1`）→ 清墓碑（`wte_tombstones_v1`，删除那一刻就记）→ 补记额度 → 增量拉取（`wte_sync_stamps_v1`，`gte(水位)`）**。反了会丢新数据/复活已删/额度被盖。
+- 集合全部 ACL `PRIVATE`：`dishes`/`meal_records`/`user_settings`/`reminders`/`daily_checkins`/`error_logs`。
+- **记录按年分片**：`wte_records_2026_v1` + 索引 `wte_records_years_v1`。单 key 1MB 上限，2500 条就满。读写一律走 `getRecords()` / `writeRecordShards()`，别直接碰分片键；`writeRecordShards` 全量重新分桶（改日期会跨年）。迁移在 `bootstrap()`，先写分片后删旧键。
+- 全量拉取用 `mergeLocalOnly()` 先补本地独有条目。错误提示用 `tagCollection` + `describeCloudError`，别硬编码集合名。
+- **菜品聚合（eatCount/score/lastEatDate）一律按 `meal_records` 重算**（`dishStatsFromRecords`/`recomputeDish`），禁用增量平均。`recomputeDish` 会 bump 菜的 updatedAt + markDirty；`recomputeAllDishStats()`（拉完自愈）**不动 updatedAt、不反写云端**，防两机互覆盖。
+- `saveRecord` 带 `id` 即编辑（留 createdAt，换菜时前后两道都回算）；记录页点某一餐=编辑，长按=删除。
+- 列表页按 id 取数据先建 `Map` 索引，别在循环里调 `store.getDish()`。
+- **节日库 `utils/festival.js` 的数据约定**：每个节日要么有 `food`（页面显示「吃点：XX」），要么有 `line`（15 字以内一句话），**二选一不共存**（wxml 用 `wx:if`/`wx:elif`）。新增节日漏了这两个，卡片那行就是空的。右侧日期按**视图模式**分：选中某天（`daysToShow({date})`）时节日/提醒/纪念日**都显示农历**；本周块（`{limit}`）只显示公历。
 
-## 云函数与触发器（踩过的坑）
-- `reminderPush` 的定时触发器**只能由微信开发者工具图形界面上传**（右键 `config.json` → 上传触发器）。IDE 的 CLI（`cli cloud functions deploy`）**没有触发器能力**，`cloud functions` 子命令只有 list / info / deploy / inc-deploy / download，也没有任何触发器参数。
-- `tcb` CLI / 腾讯云控制台 / CloudBase MCP 建的触发器照样会按时调用，但**没有小程序云调用上下文**，`cloud.openapi.subscribeMessage.send` 报 `-501001 invalid wx openapi access_token`。腾讯云开发社区 issue #1445 官方工程师的解法就是：删掉网页控制台配的触发器，改成 config.json 声明 + 用 IDE 随函数上传。
-- **别用 `tcb api scf ListTriggers` 判断触发器在不在（2026-10-28 修正）**：云开发的定时触发器不挂在 SCF 触发器列表里，`ListTriggers` 返回 `TotalCount:0 / Triggers:[]` 时触发器照样在跑（实测 2026-10-28 13:40/13:45/13:50 每 5 分钟一次 `Call succeeded`）。唯一判据是 `tcb logs search --query 'function_name:"reminderPush"' -e <env>` 看有没有按周期出现 `RetMsg: {... "scanned":N ...}`。`tcb fn log` 已废弃，别用。
-- **`-501001` 不能拿来当判据**：`tcb fn invoke`、控制台「云端测试」、任何 API 手动调用都不带小程序上下文，必然报这个错，哪怕配置全对。唯一有效验证是「触发器真跑一次后看日志」。
-- 部署云函数通道优先级（**2026-10-29 修正**）：
-  1. **改代码直接走 CloudBase MCP**：`mcp__cloudbase__manageFunctions(action="updateFunctionCode", functionName="reminderPush", functionRootPath="D:/Personal/WhatToEat/cloudfunctions")` —— 秒级成功、包一定可用。**实测：纯改代码不会动触发器、也不会丢已登记的 openapi 权限**（2026-10-29 02:15 触发轮次 `pushed:1 failed:0`，真发出订阅消息）。所以「MCP 部署必须搭配 IDE CLI 登记权限」只在**从零创建函数**时成立，函数已存在时别碰 IDE CLI（它打的包在云端解不开：`require('./lib/reminder')` 报 Cannot find module）。
-  2. 超时**必须单独改**：`updateFunctionCode` 不认 `func.timeout`，要用 `action="updateFunctionConfig"` + 顶层 `timeout`。**这个函数原来超时只有 3 秒**（`tcb fn detail` 才看得到），并发推送后调到 20 秒。
-  3. IDE CLI `cli.bat cloud functions deploy --env <env> --names X --project <path> --remote-npm-install` —— 只在「新建函数、要把 openapi 权限登记上去」时用；它不建触发器，打的包也解不开。
-- `tcb fn deploy` 会卡在依赖安装（实测 13 分钟无输出），别用。
-- `config.json` 的 `triggers` cron 与云函数 `WINDOW_MINUTES` 要配合看：cron `0 */5 * * * * *`（5 分钟一轮）+ `WINDOW_MINUTES=15`（2026-10-29 起）= 临时失败当天还能再试两次；推成功写 lastPushed 挡住重复。**要改 cron 只能微信开发者工具图形界面上传触发器**（右键 config.json → 上传触发器），改 cron 时窗口要跟着放大（15 分钟 cron → 45 分钟窗口）。
-- **推送失败分两类**（2026-10-29 改）：只有 43101（额度用完）/ 47003（模板参数错）这类永久错误才写 lastPushed；网络抖动等临时失败**故意不写**，等下一个窗口重试。以前一律写 lastPushed，网络抖一次当天就收不到。
-- **验证推送有没有真的发出去**：把云端提醒的 `time` 临时挪到几分钟后 + 给对应 user_settings 文档 `pushQuota` 置 1，等一轮触发看日志 `pushed/failed`；**测完必须还原 `time` 和 `lastPushed`**（否则当天那次的推送会被 lastPushed 挡掉）。
-- **2026-10-24 22:40 已实跑验证通过**：IDE 上传触发器后，`pushed:1 / failed:0`、`pushQuota` 8→7。所以"IDE 上传的触发器带小程序上下文"这条是成立的。
+## 设置与提醒规则
+- 设置项不写字段白名单，`normalizeSettings()` 以 `DEFAULT_SETTINGS` 键/类型为准；`updatedAt` 保留但「加额度」不 bump。
+- **`pushQuota` 只有云函数扣、客户端只能加**：写云时 `delete data.pushQuota`，加额度走 `db.command.inc`（`flushQuotaPending`），离线增量攒 `wte_quota_pending_v1`，拉取一律取云端值。云端 `user_settings` 每 openid 一份，取 `updatedAt` 最新并清多余（`readSettingsDoc`）。
+- **云函数扣额度也必须 `_.inc(-n)`**（`spendQuota`），不能整份写回：客户端 `addPushQuota` 也在 inc，绝对值覆盖会把「读额度→推送→写回」这几秒里用户新加的份额静默盖掉（用户点了订阅却没额度，只在下次推送报 43101 才暴露）。43101 走 `clearQuota` 绝对值置 0——那说明云端记账和实际授权已经对不上。`readQuota` 读出来先 `Math.max(0, ...)` 夹平脏数据，`spendQuota` 在余额不够扣时直接置 0，不让 inc 扣出负数。
+- **云数据库索引（2026-10-30 已全部落地）**：各集合的 `id` 与 `updatedAt` 都必须建（增量拉取 `gte(updatedAt)` + upsert 按业务 id 查重），否则每次同步全表扫；`error_logs` 建 `at`，`reminders` 另有 `nextTriggerDate`。**`_openid` 索引不是每个集合都自动建**——后建的 `reminders`/`daily_checkins` 实测是空的，缺了等于 ACL 过滤全表扫，要手动补。
+- **建索引不用手点**：CloudBase MCP `writeNoSqlDatabaseStructure`（`action=updateCollection` + `updateOptions.CreateIndexes`，一次可传多个索引）直接建，`readNoSqlDatabaseStructure` 的 `listIndexes` 核对。控制台的「命中次数」是累计值，刚建必为 0，跑一次真实查询才涨。
+- **普通提醒一律公历**（表单不显示日历段，`calendar` 恒 `solar`）；**只有纪念日可选公历/农历**，农历由农历 picker 独立控制，改公历日期不动农历字段。
+- 存量 `legacyLunar` 编辑时保留农历语义，否则 yearly 农历提醒被静默降级成公历。`computeLunarState(seed, today, noRoll)` 的 `noRoll` 必传（`onLoad` 按是否编辑农历数据置真，四个 change 处都传）：顺延逻辑只适合新建，编辑时会把触发日平移一年。
+- **教训**：任何「新建时的智能调整」都要绕开存量数据——存量字段是权威值。
+- 引擎层 `lunarOccurrences`/`anniversaryHit`/`baseDate`/`eventText` 别删，云函数推送和存量数据靠它。
+- 页面首屏一律「先渲染本地缓存 → 后台 `syncFromCloud()` → 成功后 refresh」；表单页用 `touched` 防覆盖输入。
+- **页面 `data` 里别调 `today()` 这类时间函数**：页面模块常驻内存，值会跨天失效（`record-form` 栽过——隔夜后保存被误判「不能记录未来日期」）。时间一律在 `onLoad`/`onShow` 现算；跨天时还要把「新增态且没手动改过」的默认日期一起推进，编辑态只修 today 不动用户选的日期。
+- **月份标题右边有两个小胶囊**：`今`（`showBackToMonth`，不是本月时才出现，跳回今天所在月）、`月`（`selectedDate` 有值时出现，取消选中回整月）。原来「查看整月」在日卡列表上方的 `record-head` 里，2026-10-30 挪到月份头并缩成一个字；`record-head` 现在只在有日卡时显示「N 餐」。
+- 记录页 `refresh()` = `buildMonthView()`（重建整月模型）+ `paint(view, withCells)`（按选中态渲染）；选中/取消某天走 `repaint()` 复用 `this.monthView`，不重读 storage、不重传 cells。**`paint` 里 `todayEmpty` 必须带 `&& !selected`**，否则选中某天时会冒出「今天还是空白」卡片。**空态卡（`.today-hint`）有两个来源**：整月视图且今天空白，或选中某天且那天空白（未来日除外），统一走 `emptyHint` 对象 + `hintTargetDate`；算的时候是 `(!selected && view.todayEmpty) || selectedEmpty`，漏了 `!selected` 会让「选中有记录的日子」也冒出这张卡。日历格三种标记：节日=数字亮蓝、纪念日=数字亮紫、**有提醒=数字右上角红点角标**（`hasReminderOn`，纪念日不算）。角标绝对定位在 `.day-num` 上、不占格子高度，**必须带 2rpx 白描边**——否则和「今天」那个 `#E85D3F` 边框糊成一块。
+- **日历数字的 CSS 顺序坑**：「选中 + 今天 + 纪念日」三个条件撞一起时，白字规则 `.day.selected .day-num.is-today` 和 `.day.selected .day-num.anniversary` 特异性都是 (0,4,0)，**必须写在后面**，否则被改回 `#C9482D`，深橙红压在橙底上几乎看不见（2026-10-30 就是这个组合）。`regression.test.js` 有静态断言守这个先后。
+- **卡片之间的垂直间距统一 20rpx**（records 的 festival/today-hint/空态、reminders 的空态）。空态卡也是卡片，别漏 —— 漏了就直接贴在日历下沿。`section-label` 是段落标题，另有 34/14 的节奏，别跟卡片间距混用。records 的日历态空态卡**无条件带 `.month-empty`**（`record-head` 只在有日卡时渲染，和它互斥）；搜索态那张别带，前面 `search-bar` 已有 20rpx。
+- 首页记住的菜存 `wte_home_pick_v1`（`getHomePick`/`saveHomePick`，只存本机不参与同步），只在抽签/改筛选/失效时换。
 
-## 订阅消息模板字段（血泪）
-- **模板关键词一个都不能漏**。缺哪个微信就报 `47003 argument invalid! data.XXX.value is empty`，而且**一次只报一个**，很容易误判成"只差一个字段"。
-- **多余 key 会被微信忽略**（早先发的 `date2` 从不报错），所以排查时直接一次性填超集，别一轮一轮试（每轮要等 5 分钟触发器）。
-- 当前模板 `HcqoSxyPU44u5AItKZCKJY_xnhIjZDPz_yHPeDBG2_c` 是 5 关键词的「日程提醒」模板，**映射已真机确认**（2026-10-24 收窄、10-25 截图复核五槽全对）：`thing5`=日程标题←`content`、`thing2`=提醒内容←`note`、`time25`=时间←`time`、`thing10`=地点←`eventDate`、`short_thing19`=日程类别←固定「用餐提醒」(`CATEGORY_TEXT`)。日历模板套用餐提醒，「地点」槽只能放日期。
-- **换模板/对不上位置时的通用打法**：先用候选超集打通投递（多余 key 被忽略、不报错），再让用户截服务通知的图，把「当前映射的取值多重集」与「每行实际显示值」配对，带类型前缀的关键词（`time25`）能直接定位到时间槽，据此收窄后跑一轮复核。
-- `cloud.openapi.wxaapi.newtmpllist` 想自助拉模板关键词列表 → `-604100`（接口权限未登记），别试。
+## 云函数与触发器
+- `reminderPush` 定时触发器**只能微信开发者工具图形界面上传**（右键 config.json → 上传触发器）。IDE CLI 无触发器能力；`tcb`/控制台建的触发器没有小程序上下文，`subscribeMessage.send` 报 `-501001`（issue #1445）。
+- **别用 `tcb api scf ListTriggers` 判断**（云开发触发器不挂在 SCF 列表，返回 0 也照样在跑）。唯一判据：`tcb logs search --query 'function_name:"reminderPush"' -e <env>` 看有没有周期性 `RetMsg: {"scanned":N}`。`tcb fn log` 已废弃。
+- **`-501001` 不能当判据**：`tcb fn invoke`/控制台测试都不带小程序上下文，必然报错。只能等触发器真跑一轮看日志。
+- 部署优先级：① **改代码走 CloudBase MCP `manageFunctions(action="updateFunctionCode", functionRootPath="D:/Personal/WhatToEat/cloudfunctions")`**（秒级、包必可用；纯改代码不动触发器也不丢 openapi 权限，实测 02:15 `pushed:1`）；② 超时**必须单独** `updateFunctionConfig` + 顶层 `timeout`（原 3 秒 → 20 秒）；③ IDE CLI `cloud functions deploy` 只在新建函数登记 openapi 权限时用（它不建触发器，打的包还解不开 `require('./lib/reminder')`）。`tcb fn deploy` 会卡死，别用。
+- cron `0 */5 * * * * *` + `WINDOW_MINUTES=15` 配合；推成功写 lastPushed 挡重复。改 cron 只能图形界面上传，窗口要随之放大。
+- **推送失败分两类**：只有 43101/47003 这类永久错误才写 lastPushed，网络抖动**故意不写**等下个窗口重试。
+- 验证真发没发：临时挪云端 `time` 到几分钟后 + `pushQuota` 置 1，等一轮看 `pushed/failed`，**测完还原 time 和 lastPushed**。2026-10-24 已实跑通过（`pushed:1 failed:0`，额度 8→7）。
+
+## 订阅消息模板
+- **当前生效 `ACTIVE_TEMPLATE = 'compact'`**（`utils/notify.js`）：3 关键词，ID `HcqoSxyPU44u5AItKZCKJVcBK9TWphDfbMmGwvh_oXM`（编号仍是 571，2026-10-30 重建的版本）。2026-10-30 08:34 真机收到，三行全对。
+- 槽位：`thing5`←content（日程标题）、`date4`←eventDate（日程时间）、`thing2`←timeNote（提醒内容，钟点拼进去）。**`date4` 是 date 类型，只认「2026年10月30日」这种写法**，传 `2026-10-30` 会被判参数非法。
+- 回退用 `legacy`：5 关键词 `HcqoSxyPU44u5AItKZCkJY_xnhIjZDPz_yHPeDBG2_c`，槽位语义错位（`thing10`「地点」槽放日期、`short_thing19`「类别」固定「用餐提醒」），多两行。
+- **关键词一个不能漏**（缺一个报 `47003 data.XXX.value is empty`，一次只报一个）；**多余 key 被忽略**，排查直接填超集。`newtmpllist` 报 `-604100`，别试。
+- 文案生成在 `utils/notify.js`（云端副本 `lib/notify.js`），它同时是**模板结构的唯一来源**（`TEMPLATE_ID` + `TEMPLATE_SLOTS`），云函数与编辑页预览共用同一份。**换模板只改这两处** + 复制副本 + `updateFunctionCode`。
+- **换完必须让用户重新点「额度+1」**——一次性订阅授权绑模板，旧额度对新模板无效（会 43101）。
+- `40037 invalid template_id` 是永久错误（模板不属于该小程序 / 已删 / ID 抄错）。**10-29 那个 571 模板就栽在这，10-30 重建同编号的新 ID 立刻通了** → 先怀疑模板本身，别急着怀疑代码或后台操作。
+- **`lastPushed` 必须在「触发时刻」变化时清空**：`store.saveReminder` 用 `triggerSignature`（date/calendar/repeat/time/advanceDays/lunar）比对，改了就清。否则当天推过一次后改时间，那轮被跳过、当天收不到。只改名/开关不清。
 
 ## 测试
-- **共 6 套，改完代码一定全跑**：
-  - `node tests/store.test.js` —— 数据层回归（聚合增删改、离线场景、墓碑、增量同步、outbox、重复设置文档）
-  - `node tests/cloudpush.test.js` —— 云函数推送（`Module._load` 打桩 wx-server-sdk + 固定时钟；覆盖临时失败不写 lastPushed、永久失败写标记、并发额度只结算一次）
-  - `node tests/engine.test.js`（农历 + 提醒计算）、`node tests/pages.test.js`（提醒页 + 错误提示）、`node tests/checkin.test.js`（签到统计）、`node tests/quotes.test.js`（文案随机）
-- 云函数逻辑要单测就用 `Module._load` 拦掉 `wx-server-sdk`，配一个假 db（支持 where/doc/update/remove + `command.inc/gt`），别真连云。
+- **10 套，改完必全跑**：`for t in store cloudpush engine pages checkin quotes festival pick report regression; do node .workbuddy/tests/$t.test.js; done`（第 10 套 `regression.test.js` 是 2026-10-30 加的，钉三处「改了不报错但行为变了」的分支：记一餐页跨天、logError 云端去重、记录页 repaint 不重建月模型）
+- 测试在 `.workbuddy/tests/`（从根目录挪来，根目录清爽），**不进 git**（`.gitignore` 只有 `.workbuddy/*` + `!.workbuddy/memory/`；`git rm -r --cached -f` 已执行，`-f` 只清索引不删文件）。**别加回追踪、别删文件**——clone 下来没有测试是 lodge 主动选的。
+- 云函数单测用 `Module._load` 拦 `wx-server-sdk` + 假 db（where/doc/update/remove + `command.inc/gt/lte/exists`）。改查询条件时**假库要同步加操作符**，否则新条件一条都匹配不上、测试假装通过。
+- **加用例前先看前面有没有打桩**（pages.test.js 的桩会污染后续用例）。**`instantiate()` 同一页面只能用一次**，要先 `delete require.cache[...]`。
+- wxml 结构改动用静态断言守（读 wxml 查关键标记），逻辑测试跑不出布局问题。
 
-## 微信开发者工具怎么从命令行拉起（2026-10-24 打通）
+## 微信开发者工具
+- stable 2.02.2608070，路径 `C:\Program Files (x86)\Tencent\微信web开发者工具`。Nightly 要求 ≥ 2.02.2608312 才有虚拟支付 skill。
+- 启动：`env -u ELECTRON_RUN_AS_NODE -u NODE_OPTIONS "./微信开发者工具.exe"`（**必须非沙箱**）。环境里的 `ELECTRON_RUN_AS_NODE=1` 会让它空跑无窗口；沙箱下 GPU 崩 (`-1073741819`)。
+- CLI 调用一律 `env -u NODE_OPTIONS ./cli.bat ...`；端口由 IDE 写进 `User Data/<hash>/Default/.ide`，不必手改 localstorage。
+- `cli.bat upload` 在 Git Bash 报 `'C:\Program' 不是内部命令`，绕过：直接 `ELECTRON_RUN_AS_NODE=1 ./微信开发者工具.exe -e '...' cli/index.js upload --project ... -v ...`。
+- **改 `packOptions.ignore` 必须 `cli.bat quit` 重启 IDE**（close+open 无效，配置缓存在主进程）。`preview` 放过未引用的坏 js，`upload` 不放过。上传成功还得去公众平台设体验版。
 
-装的是 **stable 2.02.2608070**，路径 `C:\Program Files (x86)\Tencent\微信web开发者工具`。
-
-```bash
-# 1) 启动 IDE（必须在非沙箱环境；且必须清掉这两个变量）
-env -u ELECTRON_RUN_AS_NODE -u NODE_OPTIONS "./微信开发者工具.exe"
-# 2) 等 20~30 秒，看服务端口是否起来
-netstat -ano | grep 15905            # 端口号由 IDE 自己写进 User Data/<hash>/Default/.ide
-# 3) 调 CLI（每次都要 env -u NODE_OPTIONS）
-env -u NODE_OPTIONS ./cli.bat islogin      # → {"login":true}
-```
-
-- **踩坑 1（致命）**：WorkBuddy 会话环境里有 `ELECTRON_RUN_AS_NODE=1`，任何 Electron 程序被这样拉起都会以 Node 模式运行 —— 进程活着但无窗口、无日志、无子进程。之前所有"IDE 卡住/起不来"都是它。
-- **踩坑 2**：沙箱下 GPU 进程反复 `exit_code=-1073741819` → `GPU process isn't usable. Goodbye.` 直接带走主进程；`--disable-gpu` 拦不住，必须非沙箱启动。
-- **不再需要**改 `WeappLocalData/localstorage_*.json` 里的 `enableServicePort`：端口开了 IDE 自己会在 `Default/.ide` 写端口号，CLI 自动发现。
-- IDE 版本对得上角色设定里的 Nightly 要求还差一档（stable 2608070 < 2608312），虚拟支付相关 skill 要靠 Nightly。
-
-## 上传代码包（2026-10-28 打过一遍）
-
-```bash
-# Git Bash 里 cli.bat upload 会报 "'C:\Program' 不是内部或外部命令"（内部子进程没加引号），
-# 绕过：直接拿 Electron 跑 cli/index.js，效果等价
-cd "/c/Program Files (x86)/Tencent/微信web开发者工具"
-env -u NODE_OPTIONS ELECTRON_RUN_AS_NODE=1 "./微信开发者工具.exe" -e 'const e=process.argv[1],a=process.argv.slice(2).filter(x=>x!=="--electron");if(!process.env.cwd)process.env.cwd=process.cwd();process.argv=[process.execPath,"--ms-enable-electron-run-as-node",e,"--electron"].concat(a);require(e)' "./resources/app.asar.unpacked/js/common/cli/index.js" upload --project "D:/Personal/WhatToEat" -v 0.0.2 -d "描述" --info-output "C:/.../up.json"
-# 成功标志是最后一行 "√ upload" + 体积表；exit=0
-```
-
-- **`packOptions.ignore` 改了必须 `cli.bat quit` 重启 IDE 才生效**，`close` + `open` 不管用（配置缓存在 IDE 主进程里）。
-- **`preview` 会放过未引用的坏 js，`upload` 不会**：`memory-plugin/` 里那两个 DSH 插件源码是顶层 `return {...}`（非法模块），preview 能过、upload 直接 `× compile_start` 报 `Return statement is not allowed here`。已把它连同 README/LICENSE 一起写进 `packOptions.ignore`。
-- 上传成功不会自动设为体验版，要去公众平台「版本管理 → 开发版本」手动设为体验版并扫码。
-- 安全策略会拦 IDE 内部的 `reg.exe`，只影响收尾步骤，上传本身照样成功。
-
-## 仓库与版本控制（2026-10-28 定）
-- 远程 `github.com/EchoHeim/WhatToEat` 是**公开**仓库，但 lodge 明确要求 **`.workbuddy/memory/` 必须随仓库提交**——记忆文件当项目资料对待，不要自作主张再把它移出版本库。
-- `.gitignore` 用 `.workbuddy/*` + `!.workbuddy/memory/`：只放行记忆，`preview/`、`tools/`、截图这类本地产物仍忽略。
-- `packOptions.ignore` 里仍保留整个 `.workbuddy`，记忆不会被打进小程序代码包。
-- 图标生成脚本都在 `.workbuddy/tools/`：`gen_tabbar_icons.py`（8 个 tabbar 图标，零依赖手工编码 PNG）、`gen_mood_icons.py`（16 个心情贴纸，源图在 `mood-src/`）。**删了不可复现**，目前不进仓库。
-- **本机 Python 有 Pillow 13.0.0**（装在 `~/AppData/Roaming/Python/Python313/site-packages`，2026-10-29 实测可用），图像处理直接用 PIL，不用再手搓 PNG 字节。没有 ImageMagick / ffmpeg。
-- 因为仓库公开，记忆里**不写凭据**（AppSecret、支付密钥、access_token、手机号等），只写做法与坑。
+## 仓库与其他
+- 远程 `github.com/EchoHeim/WhatToEat` **公开**，但 `.workbuddy/memory/` 必须随仓库提交（lodge 明确要求），`packOptions.ignore` 里仍忽略整个 `.workbuddy`。
+- 仓库公开 → **记忆里不写凭据**（AppSecret、支付密钥、access_token、手机号）。
+- 图标脚本在 `.workbuddy/tools/`（`gen_tabbar_icons.py`、`gen_mood_icons.py`，源图 `mood-src/`），删了不可复现，不进仓库。本机 Python 有 Pillow 13，无 ImageMagick/ffmpeg。

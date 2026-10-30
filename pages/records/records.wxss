@@ -20,13 +20,22 @@ page { height: 100vh; display: flex; flex-direction: column; }
 /* ---------- 吃饭日历 ---------- */
 .calendar { padding: 26rpx; }
 .month-head { display: flex; justify-content: space-between; align-items: center; padding: 0 10rpx 20rpx; font-size: 42rpx; }
+/* 左右箭头等宽，中间这块才能落在正中 */
+.month-center { display: flex; align-items: center; justify-content: center; }
 .month-title { font-size: 29rpx; font-weight: 700; }
+/* 翻远了回得来：只在看的不是本月时出现，和标题同一行，不占额外高度 */
+.month-back {
+  margin-left: 12rpx; padding: 6rpx 16rpx;
+  background: #F7E7DD; color: #B7543D;
+  border-radius: 999rpx; font-size: 20rpx; font-weight: 700; line-height: 1.3;
+}
 .month-arrow.disabled { color: #DCD7CD; }
 .week-row, .day-grid { display: flex; width: 100%; }
 .week-row text { display: block; width: 14.2857%; flex: none; text-align: center; color: #A19D94; font-size: 21rpx; }
 .day-grid { flex-wrap: wrap; }
 .day { display: flex; align-items: center; flex-direction: column; width: 14.2857%; flex: none; height: 76rpx; margin-top: 12rpx; padding-top: 8rpx; box-sizing: border-box; border-radius: 18rpx; font-size: 23rpx; }
-.day-num { display: flex; align-items: center; justify-content: center; min-width: 36rpx; height: 34rpx; padding: 0 2rpx; box-sizing: border-box; }
+/* position: relative 是给右上角的提醒角标当定位锚点 */
+.day-num { position: relative; display: flex; align-items: center; justify-content: center; min-width: 36rpx; height: 34rpx; padding: 0 2rpx; box-sizing: border-box; }
 /* 今天：给数字套一个外框，和选中态（整格橙色外框）区分开 */
 .day-num.is-today { border: 2rpx solid #E85D3F; border-radius: 10rpx; color: #E85D3F; font-weight: 700; }
 /* 未来日期不可选，压暗 */
@@ -36,20 +45,27 @@ page { height: 100vh; display: flex; flex-direction: column; }
 /* 选中：橙色描边外框 + 浅橙底，不再整格深色 */
 .day.selected { border: 3rpx solid #E85D3F; background: #FFF6EF; color: #C9482D; font-weight: 700; }
 .day.selected .day-num { color: #C9482D; }
-/* 选中的恰好是今天：数字填成实心橙，靠小色块保留“今天”的辨识度 */
-.day.selected .day-num.is-today { border-color: transparent; padding: 0 10rpx; background: #E85D3F; color: #fff; }
 /* 节日当天：数字亮蓝。今天恰好是节日时让位给“今天”的橙框；选中态同理压过它 */
 .day-num.festival { color: #1E7FD6; font-weight: 700; }
 /* 自定义纪念日：数字亮紫。同一天既有节日又有纪念日时紫色赢（写在 festival 后面） */
 .day-num.anniversary { color: #8B5CF6; font-weight: 700; }
 .day-num.festival.is-today, .day-num.anniversary.is-today { color: #E85D3F; }
 .day.selected .day-num.festival, .day.selected .day-num.anniversary { color: #C9482D; }
+/* 选中且恰好是今天：数字填成实心橙 + 白字，靠小色块保留“今天”的辨识度。
+   ⚠️ 这条必须排在所有 .day-num 的颜色覆盖之后：它和上面 `.day.selected .day-num.anniversary`
+   特异性相同（都是 0,4,0），放在前面就会被那行改回 #C9482D —— 深橙红压在橙红底上，
+   数字基本看不见（2026-10-30 既选了今天又是纪念日，正是这个组合）。 */
+.day.selected .day-num.is-today { border-color: transparent; padding: 0 10rpx; background: #E85D3F; color: #fff; }
 .day-mark { margin-top: 2rpx; font-size: 20rpx; line-height: 22rpx; }
 /* 心情用 SVG 小猴，格子里给它的高度固定，别把行高撑开 */
 .day-mark-img { width: 32rpx; height: 32rpx; margin-top: 0; }
+/* 有提醒的日子：数字右上角挂一个小红点，像未读角标。绝对定位，不占格子高度。
+   白描边是必须的 —— 今天那个格子的边框也是 #E85D3F，没有描边会糊成一块 */
+.day-dot { position: absolute; top: -5rpx; right: -9rpx; width: 14rpx; height: 14rpx; box-sizing: border-box; border: 2rpx solid #FFFDF8; border-radius: 50%; background: #E85D3F; }
 
 /* ---------- 本周节日（日历下面，没有节日时整块不渲染） ---------- */
-.festival-card { margin-top: 22rpx; padding: 22rpx 26rpx; }
+/* 卡片与卡片之间统一 20rpx：日历之后的每一块都靠这个值隔开 */
+.festival-card { margin-top: 20rpx; padding: 22rpx 26rpx; }
 .festival-head { display: flex; align-items: center; margin-bottom: 6rpx; }
 .festival-eyebrow { color: #E85D3F; font-size: 20rpx; font-weight: 800; letter-spacing: 3rpx; }
 .festival-head-title { margin-left: 10rpx; color: #88847B; font-size: 22rpx; }
@@ -62,12 +78,13 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .festival-emoji { flex: none; margin-right: 8rpx; font-size: 28rpx; }
 .festival-name { font-size: 27rpx; font-weight: 700; }
 .festival-tag { margin-left: 10rpx; padding: 3rpx 12rpx; background: #F4F0E8; color: #8B8982; border-radius: 999rpx; font-size: 18rpx; font-weight: 400; }
-.festival-food { margin-top: 6rpx; color: #9B978E; font-size: 21rpx; }
+/* 「吃点：XX」和没有吃食时那句闲话，同一行距、同一字号，二选一显示 */
+.festival-food, .festival-note { margin-top: 6rpx; color: #9B978E; font-size: 21rpx; }
 .festival-date { flex: none; display: flex; flex-direction: column; align-items: flex-end; color: #6C6961; font-size: 22rpx; }
 .festival-weekday { margin-top: 4rpx; color: #9B978E; font-size: 19rpx; }
 
 /* ---------- 今天还是空白 ---------- */
-.today-hint { display: flex; align-items: center; margin-top: 22rpx; padding: 24rpx 26rpx; background: #FFF6EE; }
+.today-hint { display: flex; align-items: center; margin-top: 20rpx; padding: 24rpx 26rpx; background: #FFF6EE; }
 .hint-emoji { flex: none; width: 76rpx; height: 76rpx; margin-right: 20rpx; line-height: 76rpx; text-align: center; background: #FFEBDA; border-radius: 24rpx; font-size: 40rpx; }
 .hint-main { flex: 1; min-width: 0; }
 .hint-title { font-size: 28rpx; font-weight: 700; }
@@ -109,5 +126,27 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .meal-score { flex: none; margin-left: 12rpx; color: #D99A20; font-size: 23rpx; font-weight: 700; }
 .meal-empty { padding: 16rpx 0 20rpx; color: #B4B0A7; font-size: 22rpx; }
 
+/* 空态卡也是一个卡片，和日历 / 节日卡之间同样要留 20rpx —— 以前漏了，直接贴在上沿。
+   只给日历态这一张加：搜索态那张前面是 search-bar，本身已有 20rpx 下边距。
+   这里不用再判选中态了 —— record-head 只在有日卡时渲染，和这张空态卡永远互斥。 */
+.month-empty { margin-top: 20rpx; }
 .empty text { font-size: 23rpx; }
 
+
+/* 搜索：日历只能按时间翻，翻不到「上次那家店叫什么」，所以给个关键词入口。
+   输入即切换：有关键词就把日历让位给结果，清空自动回来。 */
+.search-bar{display:flex;align-items:center;gap:12rpx;margin-bottom:20rpx;padding:18rpx 26rpx;background:#FFFDF8;border-radius:999rpx}
+.search-emoji{font-size:26rpx;opacity:.55}
+.search-input{flex:1;min-width:0;font-size:26rpx;color:#292824}
+.search-ph{color:#B4B0A6}
+.search-clear{flex:none;padding-left:10rpx;color:#E85D3F;font-size:24rpx}
+.search-summary{margin:6rpx 0 18rpx;color:#8B877E;font-size:24rpx}
+.hit-list{display:flex;flex-direction:column;gap:14rpx}
+.hit{display:flex;align-items:flex-start;gap:18rpx;padding:24rpx 26rpx}
+.hit-emoji{flex:none;font-size:40rpx;line-height:1.2}
+.hit-body{flex:1;min-width:0}
+.hit-line{display:flex;align-items:baseline;justify-content:space-between;gap:12rpx}
+.hit-name{font-size:28rpx;font-weight:600;color:#292824}
+.hit-score{flex:none;color:#E3A228;font-size:22rpx}
+.hit-sub{margin-top:6rpx;color:#9B978E;font-size:21rpx}
+.hit-note{margin-top:8rpx;color:#67645D;font-size:23rpx;line-height:1.5}

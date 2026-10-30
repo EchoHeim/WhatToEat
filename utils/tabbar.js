@@ -3,6 +3,7 @@
  * 为什么不放在 custom-tab-bar 组件里：Skyline 下自定义 tabBar 的宿主节点被排在页面原点，
  * 组件内的 fixed 只挪了绘制位置、没挪命中区，点击会全部落空。
  * 所以条子直接写在各 tab 页的 wxml 里（页面级 fixed 在本项目验证过能点）。
+ * 模板在 styles/tabbar.wxml，样式在 styles/tabbar.wxss（页面 @import 引入）。
  */
 const LIST = [
   { pagePath: '/pages/index/index', text: '首页', icon: 'home' },

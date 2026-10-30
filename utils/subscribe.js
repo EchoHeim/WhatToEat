@@ -1,17 +1,11 @@
 /**
  * 微信订阅消息封装
  *
- * 使用前需要在「微信公众平台 → 功能 → 订阅消息」里申请一个模板，
- * 并把模板 ID 填到下面的 TEMPLATE_ID。云函数侧模板 ID 配在
- * cloudfunctions/reminderPush/lib/config.js，两边必须保持一致。
- *
- * 模板字段建议（具体 key 由你申请的模板决定）：
- *   thing1  提醒内容
- *   date2   事件日期
- *   thing3  备注（还有几天 / 就是今天）
+ * 模板 ID 定义在 utils/notify.js（与云函数共用同一份），改模板只改那里。
+ * 申请路径：微信公众平台 → 功能 → 订阅消息 → 公共模板库。
  */
 
-const TEMPLATE_ID = 'HcqoSxyPU44u5AItKZCKJY_xnhIjZDPz_yHPeDBG2_c'
+const { TEMPLATE_ID } = require('./notify')
 
 /** 是否已配置模板，未配置时前端只展示应用内提醒 */
 function configured() {

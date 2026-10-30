@@ -1,5 +1,6 @@
 const store = require('../../utils/store')
 const reminderLib = require('../../utils/reminder')
+const notify = require('../../utils/notify')
 const lunar = require('../../utils/lunar')
 const subscribe = require('../../utils/subscribe')
 
@@ -13,10 +14,17 @@ Page({
   data: {
     id: '',
     content: '',
+    // 备注：选填，填了会拼在推送「提醒内容」的最前面
+    remark: '',
     kinds: reminderLib.KINDS,
     kind: reminderLib.KIND_REMINDER,
+    // 日历切换只对纪念日开放；普通提醒不区分农历公历，恒为公历。
     calendars: reminderLib.CALENDARS,
     calendar: 'solar',
+    // 存量农历普通提醒编辑时保留农历语义（新建的提醒没有这个）
+    legacyLunar: false,
+    // 编辑存量农历数据时不顺延年份（存量 lunar.year 是权威值）
+    noRoll: false,
     solarDate: '',
     today: '',
     lunarYear: 0,
@@ -29,40 +37,57 @@ Page({
     repeats: reminderLib.REPEATS,
     repeat: 'none',
     dailyRepeat: false,
+    // 「每 N 天」的步长：1 就是每天；只在 repeat === 'daily' 时有意义
+    intervalDays: 1,
+    dailyHint: '',
     advanceOptions: [],
     advanceDays: [0],
     time: reminderLib.DEFAULT_TIME,
     pushReady: false,
-    wantPush: true,
     notify: false,
-    previewText: ''
+    previewText: '',
+    // 「微信里会收到这样一条」：5 行与云函数发出的订阅消息逐字一致
+    pushPreview: []
   },
   onLoad(options) {
     const today = reminderLib.today()
     const reminder = options && options.id ? store.getReminder(options.id) : null
     const kind = reminder && reminder.kind === reminderLib.KIND_ANNIVERSARY ? reminderLib.KIND_ANNIVERSARY : reminderLib.KIND_REMINDER
-    const calendar = reminder && reminder.calendar === 'lunar' ? 'lunar' : 'solar'
+    // 普通提醒不区分农历公历，一律公历；纪念日才认农历（存量的农历纪念日照旧保留）
+    const calendar = kind === reminderLib.KIND_ANNIVERSARY && reminder && reminder.calendar === 'lunar' ? 'lunar' : 'solar'
     const solarDate = reminder && reminder.date ? reminder.date : today
-    // 纪念日一律「每年」，公历按同月日、农历按农历同月日
+    // 纪念日一律「每年」
     const repeat = kind === reminderLib.KIND_ANNIVERSARY ? 'yearly' : (reminder && reminder.repeat ? reminder.repeat : 'none')
     const advanceDays = reminder ? reminderLib.advanceList(reminder) : [0]
     // 纪念日默认不推送，开了「到期提醒」才推
     const notify = reminder ? Boolean(reminder.notify) : false
-    const seed = calendar === 'lunar' && reminder && reminder.lunar
+    // 存量的农历「普通提醒」（比如每年农历八月十五）：表单不再给新建的提醒提供农历选项，
+    // 但编辑这条老数据时保留它的农历语义 —— 否则 yearly 的农历提醒会被静默降级成公历，
+    // 触发日从「每年农历八月十五」变成「每年公历 9 月 25 日」。
+    const legacyLunar = Boolean(kind === reminderLib.KIND_REMINDER && reminder && reminder.calendar === 'lunar' && reminder.lunar)
+    // 农历纪念日的选择器初值来自它自己的 lunar 字段
+    const seed = (calendar === 'lunar' || legacyLunar) && reminder && reminder.lunar
       ? { year: reminder.lunar.year, month: reminder.lunar.month, day: reminder.lunar.day, isLeap: reminder.lunar.isLeap }
       : this.lunarFromSolar(solarDate)
 
-    const lunarState = this.computeLunarState(seed, today)
+    // 编辑存量农历数据时不要顺延年份 —— 存量 lunar.year 是权威值，顺延会平移触发日
+    const editingLunar = Boolean(reminder && (calendar === 'lunar' || legacyLunar))
+    const lunarState = this.computeLunarState(seed, today, editingLunar)
     // 公历模式下用户选择的日期优先，农历选择器只作为切换农历时的初值
     if (calendar === 'solar') lunarState.solarDate = solarDate
 
     this.setData({
       id: reminder ? reminder.id : '',
       content: reminder ? reminder.content : '',
+      remark: reminder && reminder.remark ? reminder.remark : '',
       kind,
-      calendar,
+      // 存量农历普通提醒的 calendar 也要是 lunar，日历段的高亮才对得上
+      calendar: legacyLunar ? 'lunar' : calendar,
+      legacyLunar,
+      noRoll: editingLunar,
       today,
       repeat,
+      intervalDays: reminderLib.intervalDays(reminder),
       advanceDays,
       time: reminder && reminder.time ? reminder.time : reminderLib.DEFAULT_TIME,
       notify,
@@ -85,8 +110,11 @@ Page({
   /**
    * 归一化农历选择：当年该闰月不存在时回退到常规月；
    * 选中的农历日期早于今天时顺延到下一年，保证「不重复」也能命中未来。
+   *
+   * noRoll 参数用于编辑存量数据：存量记录的 lunar.year 就是权威值，
+   * 不能顺延 —— 否则「每天」这类提醒的触发日会被平移一年（2026-10-29 → 2027-10-18）。
    */
-  computeLunarState(seed, today) {
+  computeLunarState(seed, today, noRoll) {
     const source = seed || this.lunarFromSolar(today)
     let year = Number(source.year)
     const month = Number(source.month)
@@ -95,7 +123,7 @@ Page({
 
     let resolved = resolveSolar(year, month, day, isLeap)
     let guard = 0
-    while (resolved && resolved < today && guard < 4) {
+    while (!noRoll && resolved && resolved < today && guard < 4) {
       year += 1
       resolved = resolveSolar(year, month, day, isLeap)
       guard += 1
@@ -133,31 +161,41 @@ Page({
     const kind = e.currentTarget.dataset.value
     if (kind === this.data.kind) return
     // 纪念日是「每年」的，切过去就把循环固定成 yearly
-    this.setData({ kind, repeat: kind === reminderLib.KIND_ANNIVERSARY ? 'yearly' : this.data.repeat }, () => this.refreshDerived())
+    // 普通提醒不区分农历公历，切过去时把 calendar 收回公历
+    const patch = { kind, repeat: kind === reminderLib.KIND_ANNIVERSARY ? 'yearly' : this.data.repeat }
+    if (kind === reminderLib.KIND_REMINDER) patch.calendar = 'solar'
+    // 切成纪念日后，农历由用户显式选，不再沿用老普通提醒的农历语义
+    if (kind === reminderLib.KIND_ANNIVERSARY) patch.legacyLunar = false
+    this.setData(patch, () => this.refreshDerived())
   },
   /** 纪念日的「到期提醒」开关：关掉就只在日历上标个日子 */
   notifyChange(e) { this.setData({ notify: e.detail.value }, () => this.refreshDerived()) },
   contentChange(e) { this.setData({ content: e.detail.value }, () => this.refreshDerived()) },
-  wantPushChange(e) { this.setData({ wantPush: e.detail.value }) },
-  timeChange(e) { this.setData({ time: e.detail.value }) },
+  remarkChange(e) { this.setData({ remark: e.detail.value }, () => this.refreshDerived()) },
+  timeChange(e) { this.setData({ time: e.detail.value }, () => this.refreshDerived()) },
   calendarChange(e) {
+    // 新建的普通提醒不提供农历选项；但存量农历普通提醒（legacyLunar）允许改，
+    // 否则用户看得到农历选择器却动不了。
+    const anniversary = this.data.kind === reminderLib.KIND_ANNIVERSARY
+    if (!anniversary && !this.data.legacyLunar) return
     const calendar = e.currentTarget.dataset.value
     if (calendar === this.data.calendar) return
     if (calendar === 'lunar') {
-      this.setData({ calendar, ...this.computeLunarState(this.lunarFromSolar(this.data.solarDate), this.data.today) }, () => this.refreshDerived())
+      this.setData({ calendar, ...this.computeLunarState(this.lunarFromSolar(this.data.solarDate), this.data.today, this.data.noRoll) }, () => this.refreshDerived())
     } else {
-      this.setData({ calendar }, () => this.refreshDerived())
+      // 从农历切回公历：清掉 legacyLunar，这条就真的变成公历提醒了
+      this.setData({ calendar, legacyLunar: false }, () => this.refreshDerived())
     }
   },
   solarDateChange(e) {
     const solarDate = e.detail.value
-    this.setData({ ...this.computeLunarState(this.lunarFromSolar(solarDate), this.data.today), solarDate }, () => this.refreshDerived())
+    this.setData({ ...this.computeLunarState(this.lunarFromSolar(solarDate), this.data.today, this.data.noRoll), solarDate }, () => this.refreshDerived())
   },
   lunarMonthChange(e) {
     const slot = this.data.lunarMonthOptions[Number(e.detail.value)]
     if (!slot) return
     const day = (this.data.lunarDayOptions[this.data.lunarDayIndex] || {}).value || 1
-    this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day, isLeap: slot.isLeap }, this.data.today), () => this.refreshDerived())
+    this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day, isLeap: slot.isLeap }, this.data.today, this.data.noRoll), () => this.refreshDerived())
   },
   lunarDayChange(e) {
     const slot = this.data.lunarMonthOptions[this.data.lunarMonthIndex]
@@ -177,6 +215,20 @@ Page({
       ? this.cachedAdvanceDays
       : this.data.advanceDays
     this.setData({ repeat, advanceDays: restore }, () => this.refreshDerived())
+  },
+  /** 「每 N 天」的加减按钮 */
+  intervalStep(e) {
+    const delta = Number(e.currentTarget.dataset.delta) || 0
+    this.applyInterval(this.data.intervalDays + delta)
+  },
+  /** 直接改数字：输入过程中先原样记下（可能是空串），失焦时再夹回合法区间 */
+  intervalInput(e) {
+    this.setData({ intervalDays: Number(e.detail.value) || 0 }, () => this.refreshDerived())
+  },
+  intervalBlur() { this.applyInterval(this.data.intervalDays) },
+  applyInterval(value) {
+    // 统一走 reminderLib.intervalDays 夹取，坏输入（0 / 负数 / 9999）在这一处收口
+    this.setData({ intervalDays: reminderLib.intervalDays({ intervalDays: value }) }, () => this.refreshDerived())
   },
   toggleAdvance(e) {
     if (this.data.repeat === 'daily') return
@@ -198,19 +250,25 @@ Page({
     const slot = this.data.lunarMonthOptions[this.data.lunarMonthIndex] || { month: 1, isLeap: false }
     const option = this.data.lunarDayOptions[this.data.lunarDayIndex] || { value: 1 }
     const advanceDays = daily || !this.data.advanceDays.length ? [0] : [...this.data.advanceDays].sort((a, b) => a - b)
+    // 普通提醒不区分农历公历，一律公历；只有纪念日才可能用农历。
+    // 例外：存量的农历普通提醒（legacyLunar）保留农历语义，避免 yearly 的老提醒被降级。
+    // lunarMode = 这一条要不要用农历选择器（纪念日选了农历，或存量农历普通提醒）
+    const useLunar = anniversary ? this.data.calendar === 'lunar' : this.data.legacyLunar
     const payload = {
       content: this.data.content.trim(),
+      remark: this.data.remark.trim(),
       kind: anniversary ? reminderLib.KIND_ANNIVERSARY : reminderLib.KIND_REMINDER,
-      calendar: this.data.calendar,
+      calendar: useLunar ? 'lunar' : 'solar',
       repeat: anniversary ? 'yearly' : this.data.repeat,
+      // 非「每 N 天」的提醒也带上 1，免得从「每 3 天」改成每月后留个没用的旧步长
+      intervalDays: daily ? reminderLib.intervalDays(this.data) : 1,
       time: this.data.time,
       date: this.data.solarDate,
       advanceDays: anniversary && !this.data.notify ? [0] : advanceDays,
-      lunar: this.data.calendar === 'lunar'
+      lunar: useLunar
         ? { year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: Boolean(slot.isLeap) }
         : null
     }
-    // 只有纪念日才有 notify 这个开关，普通提醒别把 undefined 写进去
     if (anniversary) payload.notify = this.data.notify
     if (this.data.id) payload.id = this.data.id
     return payload
@@ -218,14 +276,45 @@ Page({
   refreshDerived() {
     const anniversary = this.data.kind === reminderLib.KIND_ANNIVERSARY
     const daily = !anniversary && this.data.repeat === 'daily'
+    const step = reminderLib.intervalDays(this.data)
     const advanceDays = daily ? [0] : this.data.advanceDays
     const advanceOptions = reminderLib.ADVANCE_OPTIONS.map(item => ({ ...item, checked: advanceDays.includes(item.value) }))
+    // 「每天」芯片跟着步长改名，避免写着「每天」其实每 3 天
+    const repeats = reminderLib.REPEATS.map(item => (
+      item.value === 'daily' && daily && step > 1 ? { ...item, label: `每 ${step} 天` } : item
+    ))
+    // 纪念日选了农历、或这条是存量农历普通提醒时，用农历选择器
+    const lunarMode = anniversary ? this.data.calendar === 'lunar' : this.data.legacyLunar
     const draft = this.buildPayload()
     const next = reminderLib.nextOccurrence({ ...draft, enabled: true }, this.data.today)
     const previewText = anniversary
       ? this.describeAnniversary(draft, next)
       : this.describeReminder(draft)
-    this.setData({ dailyRepeat: daily, advanceDays, advanceOptions, previewText })
+    const dailyHint = daily
+      ? `${step > 1 ? `每 ${step} 天提醒一次` : '每天都会提醒'}，无需设置提前天数`
+      : ''
+    this.setData({ dailyRepeat: daily, advanceDays, advanceOptions, repeats, dailyHint, previewText, lunarMode, pushPreview: this.buildPushPreview(draft) })
+  },
+  /**
+   * 「微信里会收到这样一条」：行数、标签、取值全部来自 utils/notify.js 的 TEMPLATE_SLOTS，
+   * 跟云函数发出去的是同一份模板定义 —— 换模板后预览自动跟着变，不用改这里。
+   */
+  buildPushPreview(draft) {
+    if (!this.data.pushReady) return []
+    const anniversary = this.data.kind === reminderLib.KIND_ANNIVERSARY
+    if (anniversary && !this.data.notify) return []
+    const enabled = { ...draft, enabled: true }
+    const occurrence = reminderLib.nextOccurrence(enabled, this.data.today) || draft.date
+    // 一条提醒可能挂多个提前节点；预览按最近的那个（当天优先）算「提醒内容」
+    const advanceDays = draft.advanceDays && draft.advanceDays.length ? draft.advanceDays : [0]
+    const values = notify.buildValues(enabled, occurrence, Math.min(...advanceDays))
+    return notify.TEMPLATE_SLOTS.map(slot => ({
+      key: slot.key,
+      label: slot.label,
+      value: values[slot.source],
+      // 「日程标题」这格在编辑页里，提醒叫「提醒内容」、纪念日叫「名称」
+      source: slot.source === 'content' ? (anniversary ? '名称' : '提醒内容') : slot.sourceLabel
+    }))
   },
   describeAnniversary(draft, next) {
     if (!next) return '这个日期算不出来，换一个日期吧'
@@ -259,8 +348,8 @@ Page({
       return
     }
     wx.hideLoading()
-    // 纪念日只有开了「到期提醒」才需要订阅授权；普通提醒沿用那个微信推送开关
-    const wantPush = anniversary ? this.data.notify : this.data.wantPush
+    // 普通提醒恒定推送（表单不再提供开关）；纪念日只有开了「到期提醒」才推
+    const wantPush = anniversary ? this.data.notify : true
     const pushRequested = wantPush && subscribe.configured()
     if (pushRequested) {
       try {

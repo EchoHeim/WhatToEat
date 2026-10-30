@@ -1,32 +1,19 @@
-/** 微信订阅消息模板 ID，必须与小程序端 utils/subscribe.js 保持一致 */
-const TEMPLATE_ID = 'HcqoSxyPU44u5AItKZCKJY_xnhIjZDPz_yHPeDBG2_c'
-
 /**
- * 模板字段映射：key 为模板中的字段名，value 为数据来源（见 index.js 的 values）
+ * 云函数侧的订阅消息配置。
  *
- * 当前 TEMPLATE_ID 对应的是一个「日程提醒」类模板，共 5 个关键词，
- * 缺任何一个都会报 47003 data.XXX.value is empty，多余 key 会被微信忽略。
- *
- * 2026-10-24 依据真机收到的通知（服务通知里那五行）反推确定的对应关系：
- *   日程标题 ← thing5      提醒内容 ← thing2     时间 ← time25
- *   地点     ← thing10     日程类别 ← short_thing19
- * 判定依据：当时 thing2=eventDate、thing5/time25=time、thing10/short_thing19=note，
- * 五行实际显示为「时间 / 日期 / 时间 / note / note」，且 time25 是 time 类型的关键词、
- * short_thing19 是短文本类型，正好落位「时间」与「日程类别」两个槽。
- *
- * 说明：这是日历类模板，套在用餐提醒上，「地点」「提醒内容」两个槽语义并不贴合，
- * 只能按下面这套最不违和的填法。若将来换成吃得上的用餐/待办模板，改这里即可。
+ * 模板 ID 与「哪个槽填哪个值」都定义在 lib/notify.js —— 小程序端读的是同一份，
+ * 换模板只改 utils/notify.js 再复制过来，别在这里另抄一套。
  */
-const TEMPLATE_FIELDS = {
-  thing5: 'content', // 日程标题
-  thing2: 'note', // 提醒内容：就是今天 / 还有 N 天
-  time25: 'time', // 时间
-  thing10: 'eventDate', // 地点（借用来放日期）
-  short_thing19: 'category' // 日程类别
-}
+const { TEMPLATE_ID, TEMPLATE_SLOTS, DEFAULT_CATEGORY } = require('./notify')
 
-/** 「日程类别」槽位的固定文案 */
-const CATEGORY_TEXT = '用餐提醒'
+/** 模板字段映射：key 为模板关键词，value 为 lib/notify.js buildValues() 的字段名 */
+const TEMPLATE_FIELDS = TEMPLATE_SLOTS.reduce((acc, slot) => {
+  acc[slot.key] = slot.source
+  return acc
+}, {})
+
+/** 「日程类别」槽位的固定文案（当前模板已没有这个槽，换回带类别的模板时用） */
+const CATEGORY_TEXT = DEFAULT_CATEGORY
 
 /** 点击推送消息后跳转的小程序页面 */
 const PAGE = 'pages/reminders/reminders'
@@ -43,4 +30,4 @@ const MINIPROGRAM_STATE = 'formal'
  */
 const SUBSCRIBE_MODE = 'once'
 
-module.exports = { TEMPLATE_ID, TEMPLATE_FIELDS, CATEGORY_TEXT, PAGE, MINIPROGRAM_STATE, SUBSCRIBE_MODE }
+module.exports = { TEMPLATE_ID, TEMPLATE_FIELDS, TEMPLATE_SLOTS, CATEGORY_TEXT, PAGE, MINIPROGRAM_STATE, SUBSCRIBE_MODE }

@@ -11,16 +11,29 @@
  */
 const cloud = require('wx-server-sdk')
 const reminderLib = require('./lib/reminder')
+const notify = require('./lib/notify')
 const { TEMPLATE_ID, TEMPLATE_FIELDS, CATEGORY_TEXT, PAGE, MINIPROGRAM_STATE, SUBSCRIBE_MODE } = require('./lib/config')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const _ = db.command
 
 const BEIJING_OFFSET_MINUTES = 8 * 60
 const PAGE_SIZE = 100
+/**
+ * 没有下一次触发时的哨兵日期。
+ * 不能写空串：云数据库里 '' <= '2026-10-30' 成立，这条提醒会每天被扫到。
+ * 写到 9999 年就不会再命中任何查询。
+ */
+const NO_NEXT_TRIGGER = '9999-12-31'
 const QUOTA_EXHAUSTED = '43101' // 用户未订阅 / 订阅次数已用完
-/** 永久性错误：重试也没用，标记后当天不再尝试 */
-const PERMANENT_ERRORS = ['43101', '47003']
+/**
+ * 永久性错误：重试也没用，标记后当天不再尝试
+ *   43101 用户未订阅 / 订阅次数已用完
+ *   47003 模板参数不合法（缺 keyword、值超长）
+ *   40037 模板 ID 无效（不属于本小程序 / 已删除 / 刚添加还没同步）
+ */
+const PERMANENT_ERRORS = ['43101', '47003', '40037']
 /**
  * 时间窗口，需与触发器间隔配合看。
  * 触发器每 5 分钟一轮，这里给 15 分钟窗口：
@@ -65,30 +78,13 @@ function inTimeWindow(timeText, nowMinutes, windowMinutes) {
   return diff >= 0 && diff < windowMinutes
 }
 
-function truncate(text, limit) {
-  const value = String(text === undefined || text === null ? '' : text)
-  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value
-}
-
 /**
  * 订阅消息的 date 类字段只接受「年月日」写法（如 2026年9月25日），
  * 传 2026-09-25 会被判定为参数不合法；thing 类字段也兼容这种写法，因此统一转换。
+ * 具体拼法在 lib/notify.js —— 小程序端的「提醒预览」读的是同一份逻辑，别在这里另写一套。
  */
-function toChineseDate(dateText) {
-  const parts = String(dateText || '').split('-')
-  if (parts.length !== 3) return String(dateText || '')
-  return `${Number(parts[0])}年${Number(parts[1])}月${Number(parts[2])}日`
-}
-
 function buildMessageData(reminder, occurrence, advance) {
-  const values = {
-    content: truncate(reminder.content, 20),
-    eventDate: toChineseDate(occurrence),
-    time: reminder.time || reminderLib.DEFAULT_TIME,
-    note: advance === 0 || advance === null ? '就是今天' : `还有 ${advance} 天`,
-    // 模板里的「日程类别」槽位，本小程序统一填固定文案
-    category: truncate(CATEGORY_TEXT, 20)
-  }
+  const values = notify.buildValues(reminder, occurrence, advance, CATEGORY_TEXT)
   const data = {}
   Object.keys(TEMPLATE_FIELDS).forEach(key => {
     const value = values[TEMPLATE_FIELDS[key]]
@@ -105,22 +101,73 @@ async function readQuota(openid, cache) {
   const result = await db.collection('user_settings').where({ _openid: openid }).limit(10).get()
   const list = (result.data || []).slice().sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
   const document = list[0]
-  const entry = { quota: document ? Number(document.pushQuota || 0) : 0, docId: document ? document._id : '' }
+  // 自减是原子的，云端理论上不会负；但历史脏数据可能是负数，这里先夹平
+  const entry = { quota: Math.max(0, Number(document && document.pushQuota) || 0), docId: document ? document._id : '' }
   cache[openid] = entry
   return entry
 }
 
-async function applyQuota(openid, cache, quota) {
+/**
+ * 扣减额度：原子自减，不整份写回。
+ * 客户端 addPushQuota 用的是 command.inc（订阅授权一次加一次），
+ * 这边若写绝对值，就会把「读额度 → 推送 → 写回」这几秒里用户新加的份额静默盖掉：
+ * 用户明明点了订阅，额度却没涨，要等到真推送时才报 43101 才发现。
+ */
+async function spendQuota(openid, cache, count) {
+  if (!count) return
   const entry = await readQuota(openid, cache)
-  entry.quota = Math.max(0, quota)
   if (!entry.docId) return
-  await db.collection('user_settings').doc(entry.docId).update({ data: { pushQuota: entry.quota } })
+  // 云端记的额度不够扣（历史脏数据、或者某次推送漏记）：直接归零，
+  // 别 inc 出一个负数——那会让「额度 -2 次」这种东西一路传到客户端显示
+  if (entry.quota < count) {
+    entry.quota = 0
+    await db.collection('user_settings').doc(entry.docId).update({ data: { pushQuota: 0 } })
+    return
+  }
+  entry.quota -= count
+  await db.collection('user_settings').doc(entry.docId).update({ data: { pushQuota: _.inc(-count) } })
 }
 
-async function markPushed(docId) {
-  await db.collection('reminders').doc(docId)
-    .update({ data: { lastPushed: beijingDateText(), updatedAt: Date.now() } })
-    .catch(error => console.error('写入推送标记失败', docId, error))
+/**
+ * 授权确实耗尽（43101）：绝对值置 0。
+ * 这条路径故意不跟着改成 inc —— 报这个错说明云端记的额度和实际授权已经对不上，
+ * 直接归零比再减一次更接近事实。
+ */
+async function clearQuota(openid, cache) {
+  const entry = await readQuota(openid, cache)
+  entry.quota = 0
+  if (!entry.docId) return
+  await db.collection('user_settings').doc(entry.docId).update({ data: { pushQuota: 0 } })
+}
+
+/**
+ * 下一次触发日。触发日已过，所以从明天开始算。
+ * 也没有下一次（单次提醒已结束）就写哨兵，别让它天天躺在扫描结果里。
+ */
+function nextTriggerAfter(reminder, dateText) {
+  return reminderLib.nextTrigger(reminder, reminderLib.addDays(dateText, 1)) || NO_NEXT_TRIGGER
+}
+
+/** 推完一次就把下次触发日推进，这条提醒当天不会再被扫到 */
+async function markPushed(reminder, dateText) {
+  const nextTriggerDate = nextTriggerAfter(reminder, dateText)
+  await db.collection('reminders').doc(reminder._id)
+    .update({ data: { lastPushed: dateText, nextTriggerDate, updatedAt: Date.now() } })
+    .catch(error => console.error('写入推送标记失败', reminder._id, error))
+}
+
+/**
+ * 一条提醒今天要不要处理。
+ * 抽出来是因为候选来自两条查询（索引命中的 + 没有 nextTriggerDate 的老数据），
+ * 判断逻辑必须完全一致。
+ */
+function isCandidate(reminder, dateText, minutes, force, stats) {
+  // 纪念日默认只在日历上标个日子，不推送；只有用户开了「到期提醒」才当普通提醒处理
+  if (reminderLib.isAnniversary(reminder) && !reminderLib.anniversaryNotify(reminder)) { stats.skipped += 1; return false }
+  if (!force && !inTimeWindow(reminder.time, minutes, WINDOW_MINUTES)) { stats.skipped += 1; return false }
+  if (!force && reminder.lastPushed === dateText) { stats.skipped += 1; return false }
+  if (!reminderLib.isTriggerOn(reminder, dateText)) { stats.skipped += 1; return false }
+  return true
 }
 
 exports.main = async event => {
@@ -128,7 +175,7 @@ exports.main = async event => {
   const dateText = beijingDateText()
   const minutes = beijingMinutes()
   const startedAt = Date.now()
-  const stats = { date: dateText, minutes, forced: force, scanned: 0, pushed: 0, skipped: 0, failed: 0, noQuota: 0, candidates: 0, scanMs: 0, message: '' }
+  const stats = { date: dateText, minutes, forced: force, scanned: 0, pushed: 0, skipped: 0, failed: 0, noQuota: 0, candidates: 0, backfilled: 0, scanMs: 0, message: '' }
 
   if (!TEMPLATE_ID) {
     stats.message = '未配置订阅消息模板 ID，已跳过推送'
@@ -136,30 +183,62 @@ exports.main = async event => {
   }
 
   const quotaCache = {}
-  let skip = 0
-
-  // 先把候选挑出来：扫描量记在 stats 里，哪天真变慢了看这里
   const candidates = []
+
+  // ① 主查询：只捞「下次触发日 <= 今天」的。
+  //    以前是 where({enabled:true}) 全表翻，成本随「提醒总数」线性涨；
+  //    现在扫到的条数只跟「今天要响的提醒」有关，跟用户一共攒了多少条无关。
+  //    force 手动调试时退回全表，否则未来日期的提醒根本查不出来。
+  const scanCondition = force ? { enabled: true } : { enabled: true, nextTriggerDate: _.lte(dateText) }
+  // force 时主查询就是全表，兜底查询会把同一条再捞一次，用它去重
+  const seen = new Set()
+  let skip = 0
   while (true) {
-    const result = await db.collection('reminders').where({ enabled: true }).skip(skip).limit(PAGE_SIZE).get()
+    const result = await db.collection('reminders')
+      .where(scanCondition)
+      .skip(skip).limit(PAGE_SIZE).get()
     if (!result.data.length) break
 
     for (const document of result.data) {
+      seen.add(document._id)
       stats.scanned += 1
       const reminder = { ...document }
 
-      // 纪念日默认只在日历上标个日子，不推送；只有用户开了「到期提醒」才当普通提醒处理
-      // （老数据没有 kind 字段，一律按普通提醒走）
-      if (reminderLib.isAnniversary(reminder) && !reminderLib.anniversaryNotify(reminder)) { stats.skipped += 1; continue }
-      if (!force && !inTimeWindow(reminder.time, minutes, WINDOW_MINUTES)) { stats.skipped += 1; continue }
-      if (!force && reminder.lastPushed === dateText) { stats.skipped += 1; continue }
-      if (!reminderLib.isTriggerOn(reminder, dateText)) { stats.skipped += 1; continue }
-      candidates.push(reminder)
+      // 触发日已经过去：多半是上次推完没写回，或者用户改过规则。
+      // 先自愈一次，别让它天天占着扫描名额。
+      if (!force && reminder.nextTriggerDate && reminder.nextTriggerDate < dateText) {
+        const next = reminderLib.nextTrigger(reminder, dateText) || NO_NEXT_TRIGGER
+        await db.collection('reminders').doc(document._id)
+          .update({ data: { nextTriggerDate: next } })
+          .catch(error => console.error('修正下次触发日失败', document._id, error))
+        if (next > dateText) { stats.skipped += 1; continue }
+      }
+
+      if (isCandidate(reminder, dateText, minutes, force, stats)) candidates.push(reminder)
     }
 
     if (result.data.length < PAGE_SIZE) break
     skip += PAGE_SIZE
   }
+
+  // ② 兜底：升级前创建的提醒没有 nextTriggerDate 字段，索引查不到。
+  //    扫一轮顺手补上，之后它们就走 ① 了。正常情况下这一批第一次跑完就空了。
+  const legacy = await db.collection('reminders')
+    .where({ enabled: true, nextTriggerDate: _.exists(false) })
+    .limit(PAGE_SIZE).get()
+    .catch(error => { console.error('查询缺 nextTriggerDate 的提醒失败', error); return { data: [] } })
+  for (const document of legacy.data) {
+    if (seen.has(document._id)) continue
+    stats.scanned += 1
+    stats.backfilled += 1
+    const reminder = { ...document }
+    const next = reminderLib.nextTrigger(reminder, dateText) || NO_NEXT_TRIGGER
+    await db.collection('reminders').doc(document._id)
+      .update({ data: { nextTriggerDate: next } })
+      .catch(error => console.error('补写下次触发日失败', document._id, error))
+    if (isCandidate(reminder, dateText, minutes, force, stats)) candidates.push(reminder)
+  }
+
   stats.candidates = candidates.length
   stats.scanMs = Date.now() - startedAt
 
@@ -178,8 +257,7 @@ exports.main = async event => {
     await Promise.all(batch.map(item => pushOne(item, dateText, stats, quotaCache, spent)))
     // 额度按用户结算一次：并发时两条提醒都拿到同一份额度，逐条扣会算错
     for (const openid of Object.keys(spent)) {
-      const entry = await readQuota(openid, quotaCache)
-      await applyQuota(openid, quotaCache, entry.quota - spent[openid])
+      await spendQuota(openid, quotaCache, spent[openid])
       spent[openid] = 0
     }
   }
@@ -189,7 +267,7 @@ exports.main = async event => {
 
 /** 推一条提醒；失败分「永久」和「临时」两种，临时失败不写 lastPushed，当天还能再试 */
 async function pushOne(item, dateText, stats, quotaCache, spent) {
-  const { reminder, entry } = item
+  const { reminder } = item
   const openid = reminder._openid
   const occurrence = reminderLib.occurrenceForTrigger(reminder, dateText) || dateText
   const advance = reminderLib.advanceForTrigger(reminder, dateText)
@@ -204,19 +282,18 @@ async function pushOne(item, dateText, stats, quotaCache, spent) {
       data: buildMessageData(reminder, occurrence, advance)
     })
     stats.pushed += 1
-    await markPushed(reminder._id)
+    await markPushed(reminder, dateText)
     if (CHECK_QUOTA) spent[openid] = (spent[openid] || 0) + 1
   } catch (error) {
     stats.failed += 1
     console.error('订阅消息推送失败', reminder._id, error)
     const code = String(error && error.errCode)
     if (code === QUOTA_EXHAUSTED) {
-      entry.quota = 0
-      await applyQuota(openid, quotaCache, 0).catch(() => {})
+      await clearQuota(openid, quotaCache).catch(() => {})
     }
     if (PERMANENT_ERRORS.includes(code)) {
       // 额度用完 / 模板参数不对：重试也不会成功，标记掉当天不再试
-      await markPushed(reminder._id)
+      await markPushed(reminder, dateText)
       return
     }
     // 网络抖动、超时这类临时失败：故意不写 lastPushed，

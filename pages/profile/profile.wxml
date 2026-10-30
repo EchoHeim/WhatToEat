@@ -1,4 +1,4 @@
-<import src="/templates/tabbar.wxml" />
+<import src="/styles/tabbar.wxml" />
 <navigation-bar title="我的" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad profile-page">
   <view class="profile-head">
@@ -20,10 +20,18 @@
   </view>
   <view class="section-label">随机设置</view><view class="settings card">
     <picker range="{{recentOptions}}" value="{{recentIndex}}" bindchange="recentChange"><view class="setting-row"><view><text class="setting-name">过滤天数</text><text class="setting-desc">这段时间里吃过的菜不再推荐</text></view><text class="setting-value">{{recentText}} ›</text></view></picker>
-    <view class="setting-row"><view><text class="setting-name">允许近期重复</text><text class="setting-desc">打开后忽略上方过滤天数</text></view><switch checked="{{settings.allowRepeat}}" color="#E85D3F" bindchange="repeatChange" /></view>
+    <view class="setting-row"><view><text class="setting-name">允许近期重复</text><text class="setting-desc">打开后最近吃过的也会出现，但概率更低</text></view><switch checked="{{settings.allowRepeat}}" color="#E85D3F" bindchange="repeatChange" /></view>
     <picker range="{{meals}}" value="{{mealIndex}}" bindchange="mealChange"><view class="setting-row"><view><text class="setting-name">默认餐次</text><text class="setting-desc">首页和记录页的默认值</text></view><text class="setting-value">{{settings.defaultMeal}} ›</text></view></picker>
   </view>
+  <view class="section-label">数据</view><view class="settings card">
+    <view class="setting-row" bindtap="openReport"><view><text class="setting-name">饮食报告</text><text class="setting-desc">最常吃 · 评分走势 · 口味偏好</text></view><text class="setting-value">›</text></view>
+    <view class="setting-row" bindtap="exportData"><view><text class="setting-name">导出备份文件</text><text class="setting-desc">存成文件转发到微信 · 本机已用 {{storageText}}</text></view><text class="setting-value">›</text></view>
+    <view class="setting-row" bindtap="importData"><view><text class="setting-name">从聊天导入备份</text><text class="setting-desc">选聊天里的 .json 文件，只补充不覆盖</text></view><text class="setting-value">›</text></view>
+  </view>
+  <view class="section-label">危险操作</view><view class="settings card">
+    <view class="setting-row" bindtap="clearData"><view><text class="setting-name danger-text">清空全部数据</text><text class="setting-desc">本机与云端一起删，不可恢复</text></view><text class="setting-value danger-text">›</text></view>
+  </view>
+  <view class="version-bar">WhatToEat · {{appVersion}}</view>
   </view>
 </scroll-view>
-<view class="version-bar">WhatToEat · {{appVersion}}</view>
 <template is="app-tabbar" data="{{...tabbar}}" />

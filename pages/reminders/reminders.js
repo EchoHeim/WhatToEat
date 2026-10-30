@@ -3,11 +3,11 @@ const reminderLib = require('../../utils/reminder')
 const subscribe = require('../../utils/subscribe')
 
 const GROUP_DEFS = [
-  { key: 'anniversary', title: '纪念日', hint: '日历上标成紫色' },
+  { key: 'anniversary', title: '纪念日', hint: '' },
   { key: 'today', title: '今天', hint: '到点啦' },
   { key: 'soon', title: '未来 7 天', hint: '' },
   { key: 'later', title: '更远', hint: '' },
-  { key: 'closed', title: '已关闭 / 已结束', hint: '' }
+  { key: 'closed', title: '已关闭 / 已过期', hint: '' }
 ]
 
 Page({
@@ -22,12 +22,20 @@ Page({
     loading: true
   },
   onShow() {
-    // 先画本地缓存；云环境自检和同步都放后台，不挡首屏
+    // 先画本地缓存；同步放后台，不挡首屏
     this.refresh()
-    this.checkCloud()
     store.syncFromCloud()
-      .then(synced => { if (synced) this.refresh() })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+      .then(synced => {
+        if (!synced) return
+        // 这一轮同步跑通了，之前那句「云端没配好」就该撤掉
+        if (this.data.cloudHint) this.setData({ cloudHint: '' })
+        this.refresh()
+      })
+      // 只有同步真失败才去自检集合：正常路径不该为了一句提示白付五次查询
+      .catch(error => {
+        console.error('云同步失败，使用本地数据', error)
+        this.checkCloud()
+      })
   },
   async checkCloud() {
     const result = await store.checkCloudReady()
@@ -37,43 +45,55 @@ Page({
     const todayText = reminderLib.today()
     const settings = store.getSettings()
     const all = store.getReminders()
+    // 页面把「现在几点」显式传给引擎：引擎内部也有一份默认值，但列表页要能被测试固定住
+    const nowText = reminderLib.nowTime()
     // 纪念日不是在「某天推送」，而是在日历上标个日子，单独成组，别混进今天/未来 7 天
     const anniversaryViews = all.filter(reminderLib.isAnniversary).map(item => {
       const next = reminderLib.nextOccurrence(item, todayText)
       const days = next ? reminderLib.diffDays(todayText, next) : null
+      const dateText = days === null ? '已结束' : reminderLib.relativeText(days)
       return {
         id: item.id,
         content: item.content,
         enabled: item.enabled !== false,
         calendarText: reminderLib.calendarLabel(item.calendar),
+        lunarTag: item.calendar === 'lunar' ? '农历' : '',
         repeatText: '每年',
         timeText: reminderLib.anniversaryNotify(item) ? reminderLib.advanceText(item) : '不推送',
         advanceText: reminderLib.anniversaryNotify(item)
           ? `${item.time || reminderLib.DEFAULT_TIME} 提醒`
           : '只在日历上标记 · 数字变紫',
         eventLabel: next || '',
-        dateText: days === null ? '已结束' : reminderLib.relativeText(days),
+        dateText,
+        statusText: dateText,
         triggerText: '',
         active: true,
+        expired: false,
         today: days === 0,
         days: days === null ? 99999 : days
       }
     })
     const views = all.filter(item => !reminderLib.isAnniversary(item)).map(item => {
-      const view = reminderLib.describe(item, todayText)
+      const view = reminderLib.describe(item, todayText, nowText)
+      // 过期 = 单次提醒的触发日就是今天、但时刻已经过去：今天不会再响，
+      // 归到最下方那组灰着显示，别在「今天 · 到点啦」里冒充待办。
+      const expired = view.expired
       return {
         id: item.id,
         content: item.content,
         enabled: item.enabled !== false,
         calendarText: view.calendarText,
+        lunarTag: item.calendar === 'lunar' ? '农历' : '',
         repeatText: view.repeatText,
         timeText: view.timeText,
         advanceText: view.advanceText,
         eventLabel: view.eventLabel,
         dateText: view.dateText,
+        statusText: view.statusText,
         triggerText: view.triggerText,
-        active: view.active,
-        today: view.active && view.days === 0,
+        active: view.active && !expired,
+        expired,
+        today: view.active && !expired && view.days === 0,
         days: view.days === null ? 99999 : view.days
       }
     })
@@ -85,7 +105,9 @@ Page({
       else if (item.days <= 7) groups[2].items.push(item)
       else groups[3].items.push(item)
     })
-    groups.forEach(group => group.items.sort((a, b) => a.days - b.days))
+    // 不再触发的（已关闭 / 已结束 / 已过期）压在组内最下方，过期的再垫底
+    const rank = item => (item.expired ? 2 : item.active ? 0 : 1)
+    groups.forEach(group => group.items.sort((a, b) => rank(a) - rank(b) || a.days - b.days))
     this.setData({
       todayText,
       groups: groups.filter(group => group.items.length),
@@ -130,7 +152,7 @@ Page({
     if (!subscribe.configured()) {
       wx.showModal({
         title: '还没有配置模板 ID',
-        content: '请先在微信公众平台申请订阅消息模板，并把模板 ID 填入 utils/subscribe.js 与 cloudfunctions/reminderPush/lib/config.js，然后部署云函数。',
+        content: '请先在微信公众平台申请订阅消息模板，把模板 ID 与槽位映射填进 utils/notify.js，复制到 cloudfunctions/reminderPush/lib/notify.js，再部署云函数。',
         showCancel: false,
         confirmText: '知道了'
       })

@@ -20,10 +20,6 @@
     "ignore": [
       {
         "type": "folder",
-        "value": "tests"
-      },
-      {
-        "type": "folder",
         "value": ".workbuddy"
       },
       {

@@ -1,4 +1,4 @@
-<import src="/templates/tabbar.wxml" />
+<import src="/styles/tabbar.wxml" />
 <navigation-bar title="我的菜谱" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list">
   <view class="page-pad">

@@ -17,7 +17,6 @@
           <text class="mood-label">{{item.label}}</text>
         </view>
       </view>
-      <view class="field-hint">选一个最接近的心情</view>
     </view>
 
     <view class="field no-border">

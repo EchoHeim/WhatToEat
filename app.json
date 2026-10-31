@@ -11,7 +11,8 @@
     "pages/reminder-form/reminder-form",
     "pages/checkins/checkins",
     "pages/checkin-form/checkin-form",
-    "pages/report/report"
+    "pages/report/report",
+    "pages/feedback/feedback"
   ],
   "window": {
     "navigationBarTextStyle": "black",

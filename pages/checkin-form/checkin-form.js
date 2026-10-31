@@ -1,5 +1,6 @@
 const store = require('../../utils/store')
 const checkinLib = require('../../utils/checkin')
+const subscribe = require('../../utils/subscribe')
 
 Page({
   data: {
@@ -22,9 +23,7 @@ Page({
     this.setData({ today, date })
     this.load(date)
     // 同步放后台；回来后只有在用户没动过表单时才补一次数据，免得覆盖正在写的内容
-    store.syncFromCloud()
-      .then(synced => { if (synced && !this.touched) this.load(this.data.date) })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen(() => { if (!this.touched) this.load(this.data.date) })
   },
   /** 载入某一天的签到，切日期时复用 */
   load(date) {
@@ -57,6 +56,9 @@ Page({
       wx.showToast({ title: '选一个今天的心情', icon: 'none' })
       return
     }
+    // 心情选好了就是要签到了，顺手补一次推送额度。
+    // 卡在 showLoading 和任何 await 之前——过了点击手势，微信就不认
+    subscribe.topUpIfNeeded()
     const payload = {
       date: this.data.date,
       moodKey: mood.key,

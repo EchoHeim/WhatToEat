@@ -1,0 +1,53 @@
+<navigation-bar title="意见反馈" color="#292824" background="#F7F4ED"></navigation-bar>
+<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad form-page">
+  <view class="intro">
+    <view class="eyebrow">FEEDBACK</view>
+    <view class="page-title">想听你说点什么</view>
+    <view class="intro-sub">用得别扭的地方、想要的功能，甚至一句吐槽都行。一个人做的，看到都会回。</view>
+  </view>
+
+  <view class="form-card card">
+    <view class="field">
+      <view class="label">类型</view>
+      <view class="segment">
+        <view wx:for="{{kinds}}" wx:key="value" class="seg {{type === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="typeChange">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">具体内容</view>
+      <textarea class="feedback-textarea" placeholder="{{placeholder}}" value="{{content}}" bindinput="contentChange" maxlength="500" show-confirm-bar="{{false}}" />
+      <view class="counter {{content.length > 450 ? 'counter-warn' : ''}}">{{content.length}} / 500</view>
+    </view>
+
+    <view class="field">
+      <view class="label">截图<text class="label-extra">选填 · 最多 3 张</text></view>
+      <view class="shot-row">
+        <view wx:for="{{images}}" wx:key="key" class="shot">
+          <image class="shot-img" src="{{item.path}}" mode="aspectFill" data-index="{{index}}" bindtap="previewShot"></image>
+          <view class="shot-del" data-index="{{index}}" catchtap="removeShot">×</view>
+        </view>
+        <view wx:if="{{images.length < maxShots}}" class="shot shot-add" hover-class="shot-add-hover" bindtap="addShot">
+          <text class="shot-plus">＋</text>
+          <text class="shot-tip">加截图</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="field no-border">
+      <view class="label">联系方式<text class="label-extra">选填</text></view>
+      <input class="text-input" placeholder="微信号 / 邮箱，方便回访" value="{{contact}}" bindinput="contactChange" maxlength="40" />
+    </view>
+  </view>
+
+  <view class="meta-card card">
+    <view class="meta-head"><text class="meta-title">会自动带上这些</text><text class="meta-badge">只用来定位问题</text></view>
+    <view class="meta-row"><text class="meta-label">版本</text><text class="meta-value">{{env.version}}</text></view>
+    <view class="meta-row"><text class="meta-label">机型</text><text class="meta-value">{{env.model}}</text></view>
+    <view class="meta-row last"><text class="meta-label">系统</text><text class="meta-value">{{env.system}}</text></view>
+    <view class="meta-foot">不会带昵称、头像或任何饮食记录。</view>
+  </view>
+
+  <button class="primary-btn submit-btn {{submitting ? 'is-busy' : ''}}" bindtap="submit" loading="{{submitting}}" disabled="{{submitting}}">{{submitting ? '正在提交' : '提交反馈'}}</button>
+  <view class="foot-hint">提交后会写进开发者的云数据库，不会公开显示。</view>
+</view></scroll-view>

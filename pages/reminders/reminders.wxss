@@ -6,13 +6,6 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .title-main { flex: 1; min-width: 0; padding-right: 20rpx; }
 .page-title { font-size: 44rpx; font-weight: 800; }
 .count { margin-top: 8rpx; font-size: 24rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.add-btn {
-  flex: none; display: flex; align-items: center; justify-content: center;
-  width: 152rpx; height: 66rpx; padding: 0; box-sizing: border-box;
-  background: #E85D3F; color: #fff; border-radius: 999rpx;
-  font-size: 25rpx; font-weight: 600; white-space: nowrap;
-}
-.add-btn-hover { opacity: .82; }
 
 .banner { display: flex; align-items: center; margin-top: 32rpx; padding: 26rpx 28rpx; }
 

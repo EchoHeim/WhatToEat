@@ -6,9 +6,7 @@ Page({
   onShow() {
     // 先用本地缓存把页面画出来，别为了等云同步让详情页白屏一两秒
     this.render()
-    store.syncFromCloud()
-      .then(synced => { if (synced) this.render() })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen(() => this.render())
   },
   render() {
     const dish = store.getDish(this.data.id)

@@ -41,7 +41,7 @@ Page({
       const dish = store.getDish(options.id)
       if (dish) this.setData({ ...dish, visibleEmojis: emojiView(dish.emoji, false), tagsText: (dish.tags || []).join('、'), categoryIndex: Math.max(0, store.CATEGORIES.indexOf(dish.category)), priceChoices: priceChoices(dish.price) }, () => this.refreshChoices())
     }
-    store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen()
   },
   toggleEmojiAll() {
     const expanded = !this.data.emojiExpanded

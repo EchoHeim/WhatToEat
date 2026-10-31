@@ -6,18 +6,22 @@ Page({
   onTabTap(e) { tabbar.go(e) },
   onShow() {
     this.refresh()
-    store.syncFromCloud()
-      .then(synced => { if (synced) this.refresh() })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen(() => this.refresh())
   },
   refresh() {
     const all = store.getDishes()
-    let dishes = all
+    // 复制一份再排序：store 现在返回的是它的读缓存对象，就地 sort 会把缓存里的顺序也改掉
+    let dishes = all.slice()
     const keyword = this.data.keyword.trim().toLowerCase()
     if (keyword) dishes = dishes.filter(item => item.name.toLowerCase().includes(keyword) || (item.tags || []).join(' ').toLowerCase().includes(keyword))
     if (this.data.activeCategory !== '全部') dishes = dishes.filter(item => item.category === this.data.activeCategory)
     const sort = this.data.sort
-    dishes.sort((a, b) => sort === '名称' ? a.name.localeCompare(b.name, 'zh') : sort === '评分' ? b.score - a.score : sort === '吃过次数' ? b.eatCount - a.eatCount : b.createdAt - a.createdAt)
+    // createdAt 兜底 0：早期手建 / 导入的菜没有这个字段，相减得 NaN，
+    // 排序结果就变成「看引擎心情」，表现为「刚加的菜跑到列表中间」
+    dishes.sort((a, b) => sort === '名称' ? a.name.localeCompare(b.name, 'zh')
+      : sort === '评分' ? (b.score || 0) - (a.score || 0)
+        : sort === '吃过次数' ? (b.eatCount || 0) - (a.eatCount || 0)
+          : (b.createdAt || 0) - (a.createdAt || 0))
     this.setData({ dishes: dishes.map(item => ({ ...item, scoreText: item.score ? Number(item.score).toFixed(1) : '暂无', tagText: (item.tags || []).slice(0, 3).map(tag => `#${tag}`).join('  ') })), total: all.length })
   },
   search(e) { this.setData({ keyword: e.detail.value }); this.refresh() },

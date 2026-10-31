@@ -1,6 +1,7 @@
 const store = require('../../utils/store')
 const checkinLib = require('../../utils/checkin')
 const pick = require('../../utils/pick')
+const subscribe = require('../../utils/subscribe')
 const tabbar = require('../../utils/tabbar')
 
 function daysAgo(dateText) {
@@ -63,9 +64,10 @@ Page({
   onShow() {
     // 先把本地缓存画出来，切 tab 不再等云端往返
     this.render()
-    store.syncFromCloud()
-      .then(synced => { if (synced) this.render() })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+    // 顺手探一下「总是保持以上选择」的勾选状态：静默补推送额度靠它做判据，
+    // 放 onShow 是因为这里不挑手势，塞进 tap 会把订阅调用挤出点击窗口
+    subscribe.refreshState()
+    store.syncThen(() => this.render())
   },
   /** 刷新设置与签到条，再让菜品落在「记住的那道」上 */
   render() {
@@ -126,7 +128,7 @@ Page({
     })
   },
   /**
-   * 菜品只在两种情况下换：点「帮我选一个」，或者记住的那道彻底不可用
+   * 菜品只在两种情况下换：点「开始随机选」，或者记住的那道彻底不可用
    * （被删、被停用、或不符合当前筛选条件）。
    * 重进首页、切 tab、云同步回来都不换；刚把它记成吃过也不换——
    * 「避开最近吃过」只约束抽签，卡片上本来就有「今天吃过」。
@@ -195,6 +197,8 @@ Page({
    * 没签就直接进今天那张表单，少一步。
    */
   openCheckin() {
+    // 顶部签到条：点它就是要去签到，顺手补一次
+    subscribe.topUpIfNeeded()
     const url = this.data.checkin.checked
       ? '/pages/checkins/checkins'
       : `/pages/checkin-form/checkin-form?date=${checkinLib.today()}`
@@ -250,6 +254,9 @@ Page({
     if (this.data.rolling || this.data.burst) this.setData({ rolling: false, burst: false })
   },
   handlePick() {
+    // 首页最高频的一下点击，正好拿来静默补推送额度。必须放在最前面同步发起：
+    // 等后面跑完一轮 setTimeout / await，就出了点击手势窗口，微信会直接报错
+    subscribe.topUpIfNeeded()
     if (this.data.rolling) return
     const list = this.getCandidates()
     if (!list.length) return this.setData({ dish: null, candidates: 0, rolling: false })
@@ -273,6 +280,8 @@ Page({
   viewDetail() { if (this.data.dish) wx.navigateTo({ url: `/pages/dish-detail/dish-detail?id=${this.data.dish.id}` }) },
   confirmDish() {
     if (!this.data.dish) return
+    // 同一个手势里顺手补一次：用户点「就吃这个」是明确要记这一餐了
+    subscribe.topUpIfNeeded()
     const meal = this.data.filters.meal || store.getSettings().defaultMeal || '午餐'
     wx.navigateTo({ url: `/pages/record-form/record-form?dishId=${this.data.dish.id}&meal=${meal}` })
   }

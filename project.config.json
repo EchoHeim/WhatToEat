@@ -27,12 +27,28 @@
         "value": "preview"
       },
       {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
         "type": "file",
         "value": "README.md"
       },
       {
         "type": "file",
         "value": "LICENSE"
+      },
+      {
+        "type": "file",
+        "value": ".editorconfig"
+      },
+      {
+        "type": "file",
+        "value": ".prettierrc"
+      },
+      {
+        "type": "file",
+        "value": ".prettierignore"
       }
     ],
     "include": []

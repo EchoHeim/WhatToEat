@@ -1,0 +1,9 @@
+# 不要格式化的东西
+node_modules/
+miniprogram_npm/
+cloudfunctions/**/node_modules/
+.workbuddy/
+images/
+package-lock.json
+project.config.json
+*.min.js

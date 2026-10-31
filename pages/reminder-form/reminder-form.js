@@ -52,7 +52,11 @@ Page({
   onLoad(options) {
     const today = reminderLib.today()
     const reminder = options && options.id ? store.getReminder(options.id) : null
-    const kind = reminder && reminder.kind === reminderLib.KIND_ANNIVERSARY ? reminderLib.KIND_ANNIVERSARY : reminderLib.KIND_REMINDER
+    // 新建时按入口指定的类型走：「我的」页把提醒和纪念日拆成了两个独立按钮。
+    // 编辑时类型永远以已存数据为准、不看 URL——否则改一条提醒会被 URL 带成纪念日
+    const entryAnniversary = !reminder && Boolean(options && options.kind === reminderLib.KIND_ANNIVERSARY)
+    const storedAnniversary = Boolean(reminder) && reminder.kind === reminderLib.KIND_ANNIVERSARY
+    const kind = entryAnniversary || storedAnniversary ? reminderLib.KIND_ANNIVERSARY : reminderLib.KIND_REMINDER
     // 普通提醒不区分农历公历，一律公历；纪念日才认农历（存量的农历纪念日照旧保留）
     const calendar = kind === reminderLib.KIND_ANNIVERSARY && reminder && reminder.calendar === 'lunar' ? 'lunar' : 'solar'
     const solarDate = reminder && reminder.date ? reminder.date : today
@@ -201,7 +205,7 @@ Page({
     const slot = this.data.lunarMonthOptions[this.data.lunarMonthIndex]
     const option = this.data.lunarDayOptions[Number(e.detail.value)]
     if (!slot || !option) return
-    this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: slot.isLeap }, this.data.today), () => this.refreshDerived())
+    this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: slot.isLeap }, this.data.today, this.data.noRoll), () => this.refreshDerived())
   },
   repeatChange(e) {
     const repeat = e.currentTarget.dataset.value
@@ -350,15 +354,19 @@ Page({
     wx.hideLoading()
     // 普通提醒恒定推送（表单不再提供开关）；纪念日只有开了「到期提醒」才推
     const wantPush = anniversary ? this.data.notify : true
-    const pushRequested = wantPush && subscribe.configured()
-    if (pushRequested) {
+    const pushReady = wantPush && subscribe.configured()
+    // 订阅弹窗只在「新建」时出现：这是唯一能让用户勾上「总是保持以上选择」的时机，
+    // 勾上之后首页抽签 / 记录 / 签到那些静默补额度才真正生效。
+    // 编辑已有条目不再弹——该给的授权在新建时已经问过，缺额度去提醒页点「额度+1」
+    const askSubscribe = !this.data.id && subscribe.configured()
+    if (askSubscribe) {
       try {
         if (await subscribe.requestSubscribe()) await store.addPushQuota(1)
       } catch (error) {
         console.error('订阅授权失败', error)
       }
     }
-    wx.showToast({ title: anniversary ? '纪念日已保存' : (pushRequested ? '提醒已保存' : '已保存为应用内提醒') })
+    wx.showToast({ title: anniversary ? '纪念日已保存' : (pushReady ? '提醒已保存' : '已保存为应用内提醒') })
     setTimeout(() => wx.navigateBack(), 650)
   },
   remove() {

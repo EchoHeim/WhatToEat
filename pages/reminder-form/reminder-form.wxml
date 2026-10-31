@@ -3,7 +3,9 @@
   <view class="intro"><view class="eyebrow">{{kind === 'anniversary' ? 'ANNIVERSARY' : 'REMINDER'}}</view><view class="page-title">{{kind === 'anniversary' ? '哪一天值得记住？' : '什么时候提醒你？'}}</view></view>
 
   <view class="form-card card">
-    <view class="field">
+    <!-- 类型由入口决定（「我的」页两个按钮 / 列表页 ActionSheet），新建时不再问一遍；
+         编辑时才露出，留给「建错了想改」这一种情况 -->
+    <view wx:if="{{id}}" class="field">
       <view class="label">类型</view>
       <view class="segment">
         <view wx:for="{{kinds}}" wx:key="value" class="seg {{kind === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="kindChange">{{item.label}}</view>
@@ -83,7 +85,7 @@
     </view>
 
     <view wx:if="{{kind === 'reminder'}}" class="field no-border">
-      <view class="field-hint">{{pushReady ? '会发送微信提醒，订阅额度用完需再次开启' : '未配置订阅消息模板 ID，仅应用内提醒'}}</view>
+      <view class="field-hint">{{pushReady ? '会发送微信提醒。保存时若弹出订阅窗口，勾上「总是保持以上选择，不再询问」，以后额度会自动补' : '未配置订阅消息模板 ID，仅应用内提醒'}}</view>
     </view>
     <view wx:else class="field no-border">
       <view class="field-hint">{{notify ? '到期当天（含提前节点）会发微信提醒' : '纪念日不发送微信提醒，只在日历上标记'}}</view>

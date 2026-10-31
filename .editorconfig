@@ -1,0 +1,20 @@
+# 编辑器统一配置：换行、缩进、编码。
+# 之所以要有这个文件：跨设备 / 跨编辑器（VS Code、微信开发者工具、vim）默认行为不一致，
+# 一个人用 4 空格、另一个人用 tab，diff 里就全是没意义的空白。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown 里行尾两个空格是硬换行，不能剪
+[*.md]
+trim_trailing_whitespace = false
+
+# 小程序模板与样式：沿用 2 空格
+[*.{json,wxml,wxss}]
+indent_size = 2

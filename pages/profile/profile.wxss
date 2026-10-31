@@ -23,6 +23,15 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .tiny { font-size: 20rpx; }
 .favorite-name { margin-top: 4rpx; font-size: 29rpx; font-weight: 700; }
 .section-label { margin: 34rpx 8rpx 14rpx; color: #89857C; font-size: 23rpx; font-weight: 600; }
+/* 「提醒」区块的两个新建入口：并排各占一半，比下面那行列表入口更好点 */
+.reminder-new { display: flex; margin-bottom: 16rpx; }
+.new-card { flex: 1; display: flex; align-items: center; min-width: 0; padding: 22rpx 18rpx; background: #FFFDF8; border-radius: 24rpx; box-shadow: 0 10rpx 34rpx rgba(67, 49, 34, .07); }
+.new-card + .new-card { margin-left: 16rpx; }
+.new-card-hover { opacity: .72; }
+.new-emoji { margin-right: 12rpx; font-size: 36rpx; }
+.new-body { display: flex; flex-direction: column; min-width: 0; }
+.new-name { display: block; color: #2E2C28; font-size: 26rpx; font-weight: 600; }
+.new-desc { display: block; margin-top: 5rpx; color: #9A968D; font-size: 19rpx; }
 .settings { padding: 0 28rpx; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; min-height: 102rpx; border-bottom: 1rpx solid #EEE9E0; }
 .setting-row:last-child { border: 0; }

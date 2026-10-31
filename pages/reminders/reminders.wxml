@@ -2,7 +2,6 @@
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad reminder-page">
   <view class="title-row">
     <view class="title-main"><view class="page-title">日期提醒</view><view class="muted count">循环 · 提前提醒</view></view>
-    <view class="add-btn" hover-class="add-btn-hover" bindtap="addReminder">＋ 新建</view>
   </view>
 
   <view wx:if="{{cloudHint}}" class="cloud-hint card">
@@ -13,22 +12,24 @@
 
   <view wx:if="{{todayCount}}" class="banner card">
     <text class="banner-icon">🔔</text>
-    <view class="banner-body"><view class="banner-title">今天有 {{todayCount}} 条提醒</view><view class="banner-sub">{{pushQuota > 0 ? '微信推送剩余 ' + pushQuota + ' 次' : '微信推送次数已用完，收到后请再次开启'}}</view></view>
+    <view class="banner-body"><view class="banner-title">今天有 {{todayCount}} 条提醒</view><view class="banner-sub">{{bannerSub}}</view></view>
   </view>
 
   <view class="push card">
     <view class="push-body">
       <view class="push-title">微信推送</view>
-      <view class="push-sub">{{pushReady ? (pushQuota > 0 ? '剩余 ' + pushQuota + ' 次推送额度' : '订阅一次可推送一条，收到提醒后再点一次「额度+1」') : '未配置订阅消息模板 ID，当前仅应用内提醒'}}</view>
+      <view class="push-sub">{{pushHint}}</view>
     </view>
-    <button class="ghost-btn push-btn" bindtap="enablePush">额度+1</button>
+    <button class="ghost-btn push-btn" bindtap="enablePush">{{pushAuto === 'reject' || pushAuto === 'off' ? '去设置' : '额度+1'}}</button>
   </view>
 
   <view class="push-guide card">
     <view class="guide-title">推送怎么才能真正收到</view>
-    <view class="guide-item"><text class="guide-index">1</text><text class="guide-text">微信「一次性订阅」：点一次「额度+1」并允许，就攒下 1 次推送额度；点几次攒几次，可以累加。</text></view>
-    <view class="guide-item"><text class="guide-index">2</text><text class="guide-text">只要额度大于 0，提醒到点就会自动推送，推一条扣一次；额度用完才会停。</text></view>
-    <view class="guide-item"><text class="guide-index">3</text><text class="guide-text">攒下的额度永久有效、不会过期；推送会出现在微信的「服务通知」里。</text></view>
+    <view class="guide-item"><text class="guide-index">1</text><text class="guide-text">第一次点「额度+1」时，在弹窗底部勾上「总是保持以上选择，不再询问」，之后就不会再弹窗打扰你。</text></view>
+    <view class="guide-item"><text class="guide-index">2</text><text class="guide-text">勾上之后额度会自动补：首页抽签、记录一餐、签到这些点击里，只要额度低于 60 次就静默续上一条。</text></view>
+    <view class="guide-item"><text class="guide-index">3</text><text class="guide-text">攒到 60 次就停手，不再自动加；想要更多就点「额度+1」，那个按钮任何时候都管用。</text></view>
+    <view class="guide-item"><text class="guide-index">4</text><text class="guide-text">只要额度大于 0，提醒到点就会自动推送，推一条扣一次；额度用完才会停。</text></view>
+    <view class="guide-item"><text class="guide-index">5</text><text class="guide-text">攒下的额度永久有效、不会过期；推送会出现在微信的「服务通知」里。</text></view>
   </view>
 
   <view wx:for="{{groups}}" wx:for-item="group" wx:key="key" class="group">
@@ -54,6 +55,6 @@
     </view>
   </view>
 
-  <view wx:if="{{!total}}" class="empty card">还没有提醒<br/><text>新建一条，支持循环与提前提醒</text></view>
+  <view wx:if="{{!total}}" class="empty card">还没有提醒<br/><text>去「我的」页点「新建提醒」或「新建纪念日」</text></view>
   <view wx:else class="tip-line">轻点编辑 · 长按删除</view>
 </view></scroll-view>

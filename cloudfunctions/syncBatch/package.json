@@ -1,0 +1,9 @@
+{
+  "name": "syncBatch",
+  "version": "1.0.0",
+  "description": "批量补传：一次 upsert 最多 200 条，把导入历史数据的往返次数降两个数量级",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

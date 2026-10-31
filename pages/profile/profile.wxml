@@ -15,7 +15,18 @@
   </view>
   <view class="stats card"><view><text class="stat-value">{{stats.dishes}}</text><text class="stat-label">已收录菜品</text></view><view><text class="stat-value">{{stats.monthRecords}}</text><text class="stat-label">本月记录</text></view><view><text class="stat-value accent">{{stats.average}}</text><text class="stat-label">平均评分</text></view></view>
   <view class="favorite card"><view class="favorite-icon">🏆</view><view><view class="muted tiny">目前最喜欢</view><view class="favorite-name">{{stats.favorite}}</view></view></view>
-  <view class="section-label">提醒</view><view class="settings card">
+  <view class="section-label">提醒</view>
+  <view class="reminder-new">
+    <view class="new-card" hover-class="new-card-hover" bindtap="addReminder">
+      <text class="new-emoji">⏰</text>
+      <view class="new-body"><text class="new-name">新建提醒</text><text class="new-desc">公历 · 提前提醒</text></view>
+    </view>
+    <view class="new-card" hover-class="new-card-hover" bindtap="addAnniversary">
+      <text class="new-emoji">🎉</text>
+      <view class="new-body"><text class="new-name">新建纪念日</text><text class="new-desc">每年 · 可农历</text></view>
+    </view>
+  </view>
+  <view class="settings card">
     <view class="setting-row" bindtap="openReminders"><view><text class="setting-name">日期提醒</text><text class="setting-desc">{{reminderText}}</text></view><view class="setting-tail"><text wx:if="{{reminderBadge}}" class="setting-badge">{{reminderBadge}}</text><text class="setting-value">›</text></view></view>
   </view>
   <view class="section-label">随机设置</view><view class="settings card">
@@ -27,6 +38,9 @@
     <view class="setting-row" bindtap="openReport"><view><text class="setting-name">饮食报告</text><text class="setting-desc">最常吃 · 评分走势 · 口味偏好</text></view><text class="setting-value">›</text></view>
     <view class="setting-row" bindtap="exportData"><view><text class="setting-name">导出备份文件</text><text class="setting-desc">存成文件转发到微信 · 本机已用 {{storageText}}</text></view><text class="setting-value">›</text></view>
     <view class="setting-row" bindtap="importData"><view><text class="setting-name">从聊天导入备份</text><text class="setting-desc">选聊天里的 .json 文件，只补充不覆盖</text></view><text class="setting-value">›</text></view>
+  </view>
+  <view class="section-label">反馈</view><view class="settings card">
+    <view class="setting-row" bindtap="openFeedback"><view><text class="setting-name">意见反馈</text><text class="setting-desc">遇到问题、想要的功能，都可以说</text></view><text class="setting-value">›</text></view>
   </view>
   <view class="section-label">危险操作</view><view class="settings card">
     <view class="setting-row" bindtap="clearData"><view><text class="setting-name danger-text">清空全部数据</text><text class="setting-desc">本机与云端一起删，不可恢复</text></view><text class="setting-value danger-text">›</text></view>

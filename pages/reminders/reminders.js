@@ -10,6 +10,41 @@ const GROUP_DEFS = [
   { key: 'closed', title: '已关闭 / 已过期', hint: '' }
 ]
 
+/**
+ * 推送卡片副标题：四种订阅状态各一句话。
+ * 放在这里而不是 wxml 里堆三元——四层嵌套的三元读起来就是一团乱麻。
+ */
+function pushHintText(ready, auto, quota) {
+  if (!ready) return '未配置订阅消息模板 ID，当前仅应用内提醒'
+  if (auto === 'off') return '订阅消息总开关已关闭，点右边去设置页打开'
+  if (auto === 'reject') return '订阅已被拒收，点右边去设置页改成允许'
+  if (auto === 'accept') {
+    return quota >= subscribe.HIGH_WATER
+      ? `已达 ${subscribe.HIGH_WATER} 次上限，自动补已停 · 剩余 ${quota} 次`
+      : '自动补额度已开启 · 额度会在下次点击时补上'
+  }
+  return '首次点「额度+1」时勾选「总是保持」，之后就能自动补'
+}
+
+/** 顶部横幅副标题：开了自动补就别再说「收到后请再次开启」，到了上限也别再承诺自动补 */
+function bannerSubText(auto, quota) {
+  if (auto === 'accept' && quota < subscribe.HIGH_WATER) {
+    return quota > 0 ? `微信推送剩余 ${quota} 次，会自动补` : '额度会在下次点击时自动补上'
+  }
+  return quota > 0 ? `微信推送剩余 ${quota} 次` : '微信推送次数已用完，收到后请再次开启'
+}
+
+/** 推送卡片那几个字段的补丁：首屏 refresh 和异步回填共用一份，避免两处文案算岔 */
+function pushPatch(ready, auto, quota) {
+  return {
+    pushReady: ready,
+    pushAuto: auto,
+    pushQuota: quota,
+    pushHint: pushHintText(ready, auto, quota),
+    bannerSub: bannerSubText(auto, quota)
+  }
+}
+
 Page({
   data: {
     groups: [],
@@ -18,12 +53,21 @@ Page({
     todayText: '',
     pushReady: false,
     pushQuota: 0,
+    /** 'accept' 自动补已开 / 'reject' 被拒收 / 'off' 总开关关了 / '' 还没勾过 */
+    pushAuto: '',
+    pushHint: '',
+    bannerSub: '',
     cloudHint: '',
     loading: true
   },
   onShow() {
     // 先画本地缓存；同步放后台，不挡首屏
     this.refresh()
+    // 探到「总是保持」的真实勾选状态再回填推送卡片，不然文案会停在上一轮的旧结论。
+    // 只补那几个字段，不整份 refresh——它回来得比首屏晚，全量重建会把列表重渲一遍
+    subscribe.refreshState()
+      .then(() => this.paintPush())
+      .catch(error => console.warn('刷新推送状态失败', error))
     store.syncFromCloud()
       .then(synced => {
         if (!synced) return
@@ -108,17 +152,26 @@ Page({
     // 不再触发的（已关闭 / 已结束 / 已过期）压在组内最下方，过期的再垫底
     const rank = item => (item.expired ? 2 : item.active ? 0 : 1)
     groups.forEach(group => group.items.sort((a, b) => rank(a) - rank(b) || a.days - b.days))
+    const pushReady = subscribe.configured()
+    const pushAuto = subscribe.autoState()
+    const pushQuota = Number(settings.pushQuota || 0)
     this.setData({
       todayText,
       groups: groups.filter(group => group.items.length),
       todayCount: groups[1].items.length,
       total: views.length + anniversaryViews.length,
-      pushReady: subscribe.configured(),
-      pushQuota: Number(settings.pushQuota || 0),
+      ...pushPatch(pushReady, pushAuto, pushQuota),
       loading: false
     })
   },
-  addReminder() { wx.navigateTo({ url: '/pages/reminder-form/reminder-form' }) },
+  /**
+   * 只回填推送卡片那几行文案，不重建整份列表。
+   * refreshState 比首屏慢一拍，在这里全量 refresh 会把用户正在看的列表重渲一遍。
+   */
+  paintPush() {
+    const settings = store.getSettings()
+    this.setData(pushPatch(subscribe.configured(), subscribe.autoState(), Number(settings.pushQuota || 0)))
+  },
   editReminder(e) { wx.navigateTo({ url: `/pages/reminder-form/reminder-form?id=${e.currentTarget.dataset.id}` }) },
   noop() {},
   async toggleReminder(e) {
@@ -158,18 +211,34 @@ Page({
       })
       return
     }
+    // 已经拒收 / 总开关关着时，再调订阅接口只会静默返回 reject，只能去设置页改
+    const auto = subscribe.autoState()
+    if (auto === 'reject' || auto === 'off') {
+      wx.openSetting({
+        withSubscriptions: true,
+        // 从设置页回来不会触发页面 onShow（它是原生页），只能靠这个回调补一次；
+        // 列表没变，只回填推送卡片
+        success: () => subscribe.refreshState()
+          .then(() => this.paintPush())
+          .catch(error => console.warn('刷新推送状态失败', error))
+      })
+      return
+    }
     try {
       const accepted = await subscribe.requestSubscribe()
       if (!accepted) {
         wx.showToast({ title: '已取消授权', icon: 'none' })
-        return
+      } else {
+        await store.addPushQuota(1)
+        wx.showToast({ title: '已增加 1 次推送' })
       }
-      await store.addPushQuota(1)
-      wx.showToast({ title: '已增加 1 次推送' })
     } catch (error) {
       console.error('订阅授权失败', error)
       wx.showToast({ title: '订阅授权失败', icon: 'none' })
     }
-    this.refresh()
+    // 授权结果可能改了「总是保持」的勾选状态，重探一遍让文案跟上
+    subscribe.refreshState()
+      .then(() => this.paintPush())
+      .catch(error => console.warn('刷新推送状态失败', error))
   }
 })

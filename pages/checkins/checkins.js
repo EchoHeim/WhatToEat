@@ -1,5 +1,6 @@
 const store = require('../../utils/store')
 const checkinLib = require('../../utils/checkin')
+const subscribe = require('../../utils/subscribe')
 const { randomQuote, randomMark } = require('../../utils/quotes')
 
 function dateLabel(dateText) {
@@ -28,9 +29,7 @@ Page({
     this.setData({ quote: randomQuote(), mark: randomMark() })
     // 先画本地缓存，同步在后台跑完再刷新
     this.refresh()
-    store.syncFromCloud()
-      .then(synced => { if (synced) this.refresh() })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen(() => this.refresh())
   },
   refresh() {
     const checkins = store.getCheckins()
@@ -65,8 +64,16 @@ Page({
       loading: false
     })
   },
-  openToday() { wx.navigateTo({ url: `/pages/checkin-form/checkin-form?date=${this.data.today}` }) },
-  goForm() { wx.navigateTo({ url: `/pages/checkin-form/checkin-form?date=${this.data.today}` }) },
+  // 「签到 / 修改」和空态里的「去签到」都是自然点击，顺手补一次推送额度
+  openToday() {
+    subscribe.topUpIfNeeded()
+    wx.navigateTo({ url: `/pages/checkin-form/checkin-form?date=${this.data.today}` })
+  },
+  goForm() {
+    subscribe.topUpIfNeeded()
+    wx.navigateTo({ url: `/pages/checkin-form/checkin-form?date=${this.data.today}` })
+  },
+  // 点列表里某条是「改过去的签到」，不算签到动作，不补
   openCheckin(e) { wx.navigateTo({ url: `/pages/checkin-form/checkin-form?date=${e.currentTarget.dataset.date}` }) },
   removeCheckin(e) {
     const id = e.currentTarget.dataset.id

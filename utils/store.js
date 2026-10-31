@@ -26,6 +26,14 @@ const KEYS = {
   dirty: 'wte_dirty_v1'
 }
 
+/**
+ * 订阅授权状态缓存（utils/subscribe.js 的 STATE_KEY 就是这个值）。
+ * 清空数据时**唯独它要留着**：那个「总是保持以上选择」的勾选状态存在微信侧，
+ * 清本地数据并不会让授权失效，跟着清掉只会让自动补额度整个瘫掉，
+ * 用户还得再新建一次提醒才能恢复。
+ */
+const SUBSCRIBE_STATE_KEY = 'wte_sub_state_v1'
+
 const CATEGORIES = ['中餐', '西餐', '日料', '韩餐', '面食', '米饭', '火锅', '烧烤', '快餐', '小吃', '甜品', '饮品', '其他']
 const TAGS = ['早餐', '午餐', '晚餐', '夜宵', '自己做', '外卖', '堂食', '清淡', '辣', '高蛋白', '减脂', '快手', '聚餐']
 const MEALS = ['早餐', '午餐', '晚餐', '夜宵']
@@ -60,15 +68,41 @@ const seedDishes = [
 const seedRecords = []
 
 function clone(value) { return JSON.parse(JSON.stringify(value)) }
+/**
+ * 读缓存：dishes / records 各留一份「已经反序列化好」的对象。
+ *
+ * 为什么要有：这两份数据在页面里读得极密（首页一次渲染 4 次 getDishes、2 次 getRecords），
+ * 而 get() 每次调用都要 wx.getStorageSync（跨进程取值 + JSON 解析）再深拷贝一遍。
+ * 配合「先渲染本地 → 同步回来 → 再渲染」的写法，一次进页面等于把全量数据读两遍。
+ *
+ * 失效点是收敛的：本项目所有写都走 set() / removeKey()，在这两处统一清缓存。
+ * **不要绕过它们直接调 wx.setStorageSync**，否则缓存会变脏。
+ *
+ * 返回的是缓存对象本身（不再每次深拷贝）：调用方沿用现有约定「改完必须 set()」即可，
+ * set() 会把缓存置空，下一次读到的是重新解析的新快照。
+ */
+const readCache = { dishes: null, records: null }
+/** 某个 storage 键变了 → 对应的读缓存失效 */
+function invalidateReadCache(key) {
+  const name = String(key)
+  if (name === KEYS.dishes) readCache.dishes = null
+  // 记录按年分片：任何一年、或者分片索引变了，合并出来的全量视图都失效
+  else if (name.indexOf(KEYS.recordsPrefix) === 0 || name === KEYS.recordsYears) readCache.records = null
+}
+/** 测试用：直接改内存 storage 的用例要在改完清一次缓存 */
+function resetReadCache() {
+  readCache.dishes = null
+  readCache.records = null
+}
 function get(key, fallback) {
   const value = wx.getStorageSync(key)
   return value && Array.isArray(fallback) === Array.isArray(value) ? value : clone(fallback)
 }
-function set(key, value) { wx.setStorageSync(key, value); return value }
+function set(key, value) { wx.setStorageSync(key, value); invalidateReadCache(key); return value }
 /** 删一个 storage 键；测试环境的 wx 桩可能没有这个方法，缺了就静默跳过 */
 function removeKey(key) {
   if (typeof wx.removeStorageSync !== 'function') return false
-  try { wx.removeStorageSync(key); return true } catch (error) { console.error(`清掉 ${key} 失败`, error); return false }
+  try { wx.removeStorageSync(key); invalidateReadCache(key); return true } catch (error) { console.error(`清掉 ${key} 失败`, error); return false }
 }
 function uid(prefix) { return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}` }
 function two(n) { return `${n}`.padStart(2, '0') }
@@ -116,10 +150,16 @@ function readRecordShards() {
 
 /**
  * 按年份重新分桶写入。
- * 不做「增量改一条」，因为改日期会让记录跨年——重新分桶是最不容易出错的做法，
- * 一次涉及几百条，本地写几次 storage 远比修 bug 便宜。
+ *
+ * 默认是「全量重桶」：改日期会让记录跨年，重新分桶是最不容易出错的做法。
+ * 但它的代价随数据量线性增长——三年两千条时，记一餐要把每个年份的分片都整份序列化写一遍，
+ * 而这次操作其实只动到了其中一年。
+ *
+ * 所以加了 `options.touchedYears`：调用方明确知道自己只改了哪几年时传进来，
+ * 且「年份集合没变」（没跨年、没把某一年删空）时只重写这几片。
+ * 拿不准就**别传**——不传等于走原来的全量路径，行为完全一致。
  */
-function writeRecordShards(list) {
+function writeRecordShards(list, options) {
   const buckets = {}
   ;(list || []).forEach(item => {
     if (!item || !item.id) return
@@ -128,7 +168,15 @@ function writeRecordShards(list) {
     buckets[year].push(item)
   })
   const years = Object.keys(buckets).sort()
-  for (const year of years) {
+  const storedYears = getRecordYears()
+  // 年份集合变了（跨年 / 整年删空）就必须走全量：分片要新建或整片清掉
+  const sameYears = years.length === storedYears.length && years.every((year, index) => year === storedYears[index])
+  const touched = options && Array.isArray(options.touchedYears)
+    ? [...new Set(options.touchedYears.map(String))].filter(year => buckets[year])
+    : []
+  const targets = touched.length && sameYears ? years.filter(year => touched.includes(year)) : years
+
+  for (const year of targets) {
     try {
       set(recordsKey(year), buckets[year])
     } catch (error) {
@@ -142,7 +190,7 @@ function writeRecordShards(list) {
     }
   }
   // 整年记录被删空的，把那个分片也清掉，别留一份死数据占着 storage
-  for (const year of getRecordYears()) {
+  for (const year of storedYears) {
     if (!buckets[year]) removeKey(recordsKey(year))
   }
   set(KEYS.recordsYears, years)
@@ -229,8 +277,31 @@ function clearDirty(collection, id) {
  * 正常使用一天也就几条，这个上限碰不到；但导入几千条历史数据时，
  * 一条要 2 次往返（查重 + 写），一轮全传完会把同步拖到几分钟。
  * 超出的留在待传清单里，下次打开小程序接着传。
+ *
+ * 注意：走批量云函数（syncBatch）的那部分**不占这个配额** ——
+ * 它们一次调用就处理一百条，没有「把同步拖到几分钟」的问题。
+ * 这个上限现在只约束逐条通道。
  */
 const DIRTY_UPLOAD_PER_ROUND = 40
+/** 条数达到这个量才值得走批量：一两条时云函数冷启动比逐条还慢 */
+const SYNC_BATCH_MIN = 20
+/** 一次调用带多少条（服务端上限 200，客户端留一半余量） */
+const SYNC_BATCH_SIZE = 100
+/** 批量补传云函数名；改名字要连 cloudfunctions/ 下的目录一起改 */
+const SYNC_BATCH_FUNCTION = 'syncBatch'
+/** 本会话里批量通道已被证实不通（没部署 / 名字不对），后面别再每轮撞一次 */
+let batchUnavailable = false
+
+/**
+ * 这个错误是不是「云函数根本不存在」。
+ * 最常见的就是改了目录名忘了部署，或者换了环境还没建这个函数。
+ */
+function isBatchUnavailable(error) {
+  const code = Number((error && (error.errCode !== undefined ? error.errCode : error.code)) || 0)
+  if (code === -501000 || code === -501001) return true
+  const text = String((error && (error.errMsg || error.message)) || error || '')
+  return /FunctionName parameter could not be found|FUNCTION_NOT_FOUND|FunctionNotFound/i.test(text)
+}
 
 /**
  * 取云端对应的那一条，用来比 updatedAt。
@@ -252,6 +323,64 @@ async function readCloudItem(collectionName, localItem) {
 }
 
 /**
+ * 走批量云函数补传一片。
+ * 返回 false 表示「这片没走成批量」，调用方退回逐条通道。
+ */
+async function uploadBatch(collection, ids) {
+  const items = []
+  for (const id of ids) {
+    const item = findLocalItem(collection, id)
+    // 本地已经删掉了：云端那条交给墓碑处理，待传清单可以划掉
+    if (item) items.push(cloudData(item))
+    else clearDirty(collection, id)
+  }
+  if (!items.length) return true
+
+  let response
+  try {
+    response = await wx.cloud.callFunction({ name: SYNC_BATCH_FUNCTION, data: { collection, items } })
+  } catch (error) {
+    if (isBatchUnavailable(error)) {
+      batchUnavailable = true
+      console.warn('批量补传云函数不可用，本次会话退回逐条通道', error)
+      return false
+    }
+    throw error
+  }
+  const payload = (response && response.result) || {}
+  if (!payload.ok) {
+    console.error('批量补传被拒，退回逐条通道', payload.message)
+    return false
+  }
+  // 服务端按 openid 圈定、按 updatedAt 判新旧，规则与逐条通道一致；
+  // 回来的 cloudId 要回写到本地，之后单条写才能走主键更新
+  ;(payload.results || []).forEach(entry => {
+    if (!entry || !entry.id) return
+    if (entry.cloudId) patchLocalCloudId(collection, entry.id, entry.cloudId)
+    clearDirty(collection, entry.id)
+  })
+  ;(payload.failed || []).forEach(entry => console.error(`${collection} 批量补传失败，留到下次同步`, entry))
+  return true
+}
+
+/** 切片跑批量通道；返回「没能走批量、需要逐条处理」的 id */
+async function uploadInBatches(collection, ids) {
+  const rest = []
+  for (let index = 0; index < ids.length; index += SYNC_BATCH_SIZE) {
+    const part = ids.slice(index, index + SYNC_BATCH_SIZE)
+    // 上一片已经证实通道不可用（云函数没部署），剩下的别再一片一片撞
+    if (batchUnavailable) { rest.push(...part); continue }
+    try {
+      if (!(await uploadBatch(collection, part))) rest.push(...part)
+    } catch (error) {
+      console.error(`${collection} 批量补传出错，退回逐条`, error)
+      rest.push(...part)
+    }
+  }
+  return rest
+}
+
+/**
  * 把清单里的条目补传上云。
  * 先看一眼云端那份：云端更新就听云端的（本地那份已经过时），本地更新才传。
  */
@@ -259,7 +388,12 @@ async function flushDirtyUploads() {
   const dirty = getDirty()
   let done = 0
   for (const collection of Object.keys(dirty)) {
-    for (const id of dirty[collection] || []) {
+    let ids = Array.isArray(dirty[collection]) ? dirty[collection].slice() : []
+    // 导入历史数据时这条分支才是主路：100 条一次调用，不用反复开关小程序几十次
+    if (!batchUnavailable && ids.length >= SYNC_BATCH_MIN) {
+      ids = await uploadInBatches(collection, ids)
+    }
+    for (const id of ids) {
       if (done >= DIRTY_UPLOAD_PER_ROUND) return
       done += 1
       const localItem = findLocalItem(collection, id)
@@ -347,7 +481,10 @@ function bootstrap() {
   migrateRecordShards()
 }
 
-function getDishes() { return get(KEYS.dishes, seedDishes) }
+function getDishes() {
+  if (!readCache.dishes) readCache.dishes = get(KEYS.dishes, seedDishes)
+  return readCache.dishes
+}
 function getDish(id) { return getDishes().find(item => item.id === id) }
 
 // ---------- 菜品聚合 ----------
@@ -426,7 +563,7 @@ async function deleteDish(id) {
 /**
  * 只存本机，不参与云同步：这是「这台手机上首页正显示哪道菜」的界面状态，
  * 不是业务数据。以前每次 onShow 都重抽，用户选好了切个 tab 回来就变，
- * 现在把落定的结果记住，只有点「帮我选一个」或这道菜失效时才换。
+ * 现在把落定的结果记住，只有点「开始随机选」或这道菜失效时才换。
  */
 function getHomePick() {
   const value = wx.getStorageSync(KEYS.homePick)
@@ -439,7 +576,10 @@ function saveHomePick(dishId) {
 
 /** 全部记录，按日期倒序（跨所有年份分片合并后排序） */
 function getRecords() {
-  return readRecordShards().sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`))
+  if (!readCache.records) {
+    readCache.records = readRecordShards().sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`))
+  }
+  return readCache.records
 }
 function getRecord(id) { return getRecords().find(item => item.id === id) || null }
 
@@ -697,7 +837,7 @@ async function clearAllData() {
   Object.values(KEYS).forEach(key => keys.add(key))
   getRecordYears().forEach(year => keys.add(recordsKey(year)))
 
-  const targets = [...keys].filter(key => String(key).indexOf(KEY_PREFIX) === 0)
+  const targets = [...keys].filter(key => String(key).indexOf(KEY_PREFIX) === 0 && key !== SUBSCRIBE_STATE_KEY)
   targets.forEach(key => removeKey(key))
   // 回到新装：预置菜库、空记录、默认设置（pushQuota 归 0）
   bootstrap()
@@ -808,7 +948,9 @@ async function saveRecord(input) {
   }
   if (previous) records[index] = record
   else records.unshift(record)
-  writeRecordShards(records)
+  // 只重写这次真正动到的年份（编辑时换了日期跨年 → 前后两年都要写）。
+  // 其余年份的分片内容一个字都没变，全量重写纯属浪费序列化。
+  writeRecordShards(records, { touchedYears: [previous ? recordYear(previous) : '', recordYear(record)] })
 
   // 先把涉及菜的聚合在本地重算好，再去写云。
   // 顺序不能反：upsertCloud 一抛错（离线 / 集合没建好），后面的重算就被整个跳过——
@@ -831,7 +973,7 @@ async function deleteRecord(id) {
   const records = getRecords()
   const record = records.find(item => item.id === id)
   if (!record) return
-  writeRecordShards(records.filter(item => item.id !== id))
+  writeRecordShards(records.filter(item => item.id !== id), { touchedYears: [recordYear(record)] })
   // 本地先把聚合回滚，免得云同步失败时统计还挂着已删记录
   const dish = record.dishId ? recomputeDish(record.dishId) : null
   scheduleCloudDelete('meal_records', record, '删除记录')
@@ -1226,7 +1368,14 @@ async function pruneCloudErrorLogs() {
   set(ERROR_LOG_PRUNE_KEY, now)
   try {
     const db = wx.cloud.database()
-    await db.collection('error_logs').where({ at: db.command.lt(now - ERROR_LOG_CLOUD_TTL_MS) }).remove()
+    // 客户端 remove() **单次最多删 20 条**（平台限制）。
+    // 只删一次的话，过期日志攒过 20 条之后，每 7 天也只能清掉 20 条，长期只增不减。
+    // 这里循环到某次返回 0 为止，做法和 wipeCollection 一致。
+    for (let round = 0; round < 50; round++) {
+      const result = await db.collection('error_logs').where({ at: db.command.lt(now - ERROR_LOG_CLOUD_TTL_MS) }).remove()
+      const removed = Number((result && result.stats && result.stats.removed) || 0)
+      if (!removed) break
+    }
     return true
   } catch (error) {
     // 集合没建 / 权限不对：不影响主流程，存个时间戳下周再试
@@ -1301,6 +1450,20 @@ async function queryAll(name) {
   return all
 }
 /**
+ * 水位回退安全窗（10 分钟）。
+ *
+ * updatedAt 全部由各设备自己的 Date.now() 生成，同步水位取的又是「云端见过最大的 updatedAt」。
+ * 这等于拿两颗不同的钟做比较：A 设备比 B 慢 30 分钟时，A 写入的 updatedAt 会低于 B 已经推进的水位，
+ * B 从此永远拉不到 A 的新数据——**而且不报任何错**。用户手动改系统时间同理，一次就能把水位顶到未来。
+ *
+ * 拉取时把水位往回让 10 分钟：多拉到的几条是幂等的（同 id 比 updatedAt 谁新），
+ * 而漏掉一条就是永久丢数据。写入侧与 setSyncStamp 的取最大值逻辑都不动。
+ *
+ * 长期方案是给文档加一个 serverDate 生成的字段专供水位，把「谁更新」和「谁更新过」两套语义分开；
+ * 那要动全库数据，先不做。
+ */
+const SYNC_STAMP_SAFETY_MS = 10 * 60 * 1000
+/**
  * 增量拉取：只要 updatedAt 大于等于水位的文档。
  * 用 >= 而不是 >：同一毫秒里写的数据也不会漏（多拉一条只是重复更新，幂等）。
  */
@@ -1311,8 +1474,9 @@ async function querySince(name, stamp) {
   const all = []
   const pageSize = 20
   let page = 0
+  const from = Math.max(0, Number(stamp) - SYNC_STAMP_SAFETY_MS)
   while (true) {
-    const result = await collection.where({ updatedAt: command.gte(stamp) }).skip(page * pageSize).limit(pageSize).get()
+    const result = await collection.where({ updatedAt: command.gte(from) }).skip(page * pageSize).limit(pageSize).get()
     all.push(...result.data)
     if (result.data.length < pageSize) break
     page += 1
@@ -1465,17 +1629,19 @@ function scheduleCloudDelete(collectionName, item, context) {
 async function migrateLocalToCloud() {
   const dishes = getDishes()
   const records = getRecords()
-  for (const dish of dishes) await upsertCloud('dishes', dish)
-  for (const record of records) await upsertCloud('meal_records', record)
+  // 传完就把待传清单上的划掉：这条路径本来就是「本机全量上云」，
+  // 留着清单只会让下一次同步为每条白跑一次「查云端 → 一样新 → 划掉」
+  for (const dish of dishes) { await upsertCloud('dishes', dish); clearDirty('dishes', dish.id) }
+  for (const record of records) { await upsertCloud('meal_records', record); clearDirty('meal_records', record.id) }
   // reminders 集合可能尚未在云开发控制台创建，失败时保留本地数据即可
   try {
-    for (const reminder of getReminders()) await upsertCloud('reminders', reminder)
+    for (const reminder of getReminders()) { await upsertCloud('reminders', reminder); clearDirty('reminders', reminder.id) }
   } catch (error) {
     console.error('提醒数据上云失败，请确认已创建 reminders 集合', error)
   }
   // daily_checkins 集合可能尚未创建，失败时保留本地签到即可
   try {
-    for (const checkin of getCheckins()) await upsertCloud(CHECKIN_COLLECTION, checkin)
+    for (const checkin of getCheckins()) { await upsertCloud(CHECKIN_COLLECTION, checkin); clearDirty(CHECKIN_COLLECTION, checkin.id) }
   } catch (error) {
     console.error('签到数据上云失败，请确认已创建 daily_checkins 集合', error)
   }
@@ -1584,6 +1750,10 @@ async function mergeLocalOnly(collectionName, cloudList, options) {
   for (const item of push) {
     try {
       byId.set(item.id, await upsertCloud(collectionName, item))
+      // 已经确认写进云端了，待传清单上的这条就该划掉。
+      // 以前这里不划，首轮全量同步把本地独有条目补传完之后，清单里还留着它们，
+      // 下一次同步又要为每条白跑一次「查云端 → 发现一样新 → 划掉」。
+      clearDirty(collectionName, item.id)
     } catch (error) {
       console.error(`${collectionName} 补传失败，先留在本机`, error)
       // 补传失败也用本地这份占住这个 id，避免云端旧版和本地新版在列表里同时出现
@@ -1694,4 +1864,20 @@ async function syncFromCloud(options) {
   try { return await syncPromise } finally { syncPromise = null }
 }
 
-module.exports = { CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, getDishes, getDish, saveDish, deleteDish, getHomePick, saveHomePick, getRecords, getRecord, saveRecord, deleteRecord, normalizeClock, clockFromStamp, recordClock, exportSnapshot, writeSnapshotFile, readSnapshotFile, previewSnapshot, applySnapshot, clearAllData, storageReport, storageUsage, getRecordYears, pruneTombstones, pruneErrorLogs, computeNextTriggerDate, backfillNextTriggerDate, NEXT_TRIGGER_NONE, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, onCloudError, flushCloudQueue, logError }
+/**
+ * 页面 onShow 的标准写法：拉一次云，真的拉到了才重绘。
+ *
+ * 以前每个页面各自抄一遍 `.then(synced => { if (synced) this.refresh() }).catch(...)`，
+ * 抄到第十几处必然有人漏掉 catch —— 那样云同步一失败就是一个未处理的 Promise 拒绝，
+ * 而且线上没人看得见。收在这里之后，页面只需要写 store.syncThen(() => this.refresh())。
+ *
+ * 不做「全局广播同步完成」（store.onSynced）：同时在页面栈里的页面有七八个，
+ * 广播会把不可见页面也重绘一遍，编辑中的表单还可能被覆盖掉输入。
+ */
+function syncThen(callback) {
+  return syncFromCloud()
+    .then(synced => { if (synced && typeof callback === 'function') callback() })
+    .catch(error => console.error('云同步失败，使用本地数据', error))
+}
+
+module.exports = { SUBSCRIBE_STATE_KEY, CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, syncThen, getDishes, getDish, saveDish, deleteDish, getHomePick, saveHomePick, getRecords, getRecord, saveRecord, deleteRecord, normalizeClock, clockFromStamp, recordClock, exportSnapshot, writeSnapshotFile, readSnapshotFile, previewSnapshot, applySnapshot, clearAllData, storageReport, storageUsage, getRecordYears, pruneTombstones, pruneErrorLogs, computeNextTriggerDate, backfillNextTriggerDate, NEXT_TRIGGER_NONE, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, onCloudError, flushCloudQueue, logError, resetReadCache }

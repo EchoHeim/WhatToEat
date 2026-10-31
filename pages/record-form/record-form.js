@@ -1,4 +1,5 @@
 const store = require('../../utils/store')
+const subscribe = require('../../utils/subscribe')
 
 function today() { const d = new Date(); const pad = n => `${n}`.padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
 /** 新增时的默认时间：就是现在 */
@@ -80,7 +81,7 @@ Page({
     })
     this.loaded = true
     // 表单用本地缓存先立起来，云端同步放后台——列表页已经同步过一轮了
-    store.syncFromCloud().catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen()
   },
   /** 从「新建菜品」返回时把新菜自动选中，同时刷新列表 */
   onShow() {
@@ -143,6 +144,9 @@ Page({
   async save() {
     if (!this.data.dishId) return wx.showToast({ title: '请先选择或新建一道菜品', icon: 'none' })
     if (this.data.date > this.data.today) return wx.showToast({ title: '不能记录未来日期', icon: 'none' })
+    // 两道校验都过了才补推送额度：存不下去的时候不该白多订一次。
+    // 位置卡在 showLoading 之前、任何 await 之前——微信只认点击手势，过了这村没这店
+    subscribe.topUpIfNeeded()
     wx.showLoading({ title: '保存中' })
     let saved = false
     try {

@@ -1,0 +1,9 @@
+{
+  "name": "feedbackSubmit",
+  "version": "1.0.0",
+  "description": "意见反馈：写入 feedbacks 集合并推送到企业微信群机器人",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

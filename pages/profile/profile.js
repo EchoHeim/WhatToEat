@@ -1,15 +1,15 @@
 const store = require('../../utils/store')
+const reminderLib = require('../../utils/reminder')
 const tabbar = require('../../utils/tabbar')
+const version = require('../../utils/version')
 
 Page({
-  // appVersion 要跟 `cli upload -v` 传的版本号一致，发版时一起改
-  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', storageText: '', appVersion: 'Ver0.0.8', tabbar: tabbar.create(3) },
+  // appVersion 从 utils/version.js 取，跟 `cli upload -v` 传的版本号一起改；反馈页读的是同一份
+  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', storageText: '', appVersion: version.APP_VERSION, tabbar: tabbar.create(3) },
   onTabTap(e) { tabbar.go(e) },
   onShow() {
     this.refresh()
-    store.syncFromCloud()
-      .then(synced => { if (synced) this.refresh() })
-      .catch(error => console.error('云同步失败，使用本地数据', error))
+    store.syncThen(() => this.refresh())
   },
   refresh() {
     const dishes = store.getDishes(), records = store.getRecords(), settings = store.getSettings()
@@ -225,6 +225,10 @@ Page({
     })
   },
   openReminders() { wx.navigateTo({ url: '/pages/reminders/reminders' }) },
+  openFeedback() { wx.navigateTo({ url: '/pages/feedback/feedback' }) },
+  /** 「提醒」区块的两个新建入口：类型钉在 URL 上，进去直接就是那一种，不用再手动切 */
+  addReminder() { wx.navigateTo({ url: `/pages/reminder-form/reminder-form?kind=${reminderLib.KIND_REMINDER}` }) },
+  addAnniversary() { wx.navigateTo({ url: `/pages/reminder-form/reminder-form?kind=${reminderLib.KIND_ANNIVERSARY}` }) },
   async chooseAvatar(e) {
     const tempUrl = e.detail.avatarUrl
     if (!tempUrl) return

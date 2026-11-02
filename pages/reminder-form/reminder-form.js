@@ -34,6 +34,11 @@ Page({
     lunarDayOptions: [],
     lunarDayLabels: [],
     lunarDayIndex: 0,
+    // 用户语义上的农历日 / 闰月标记：picker 可能因为「今年没有这一天」显示成别的值，
+    // 但保存时按这两个走，否则「腊月三十」编辑一次就变廿九
+    lunarDayValue: 0,
+    lunarIsLeapValue: false,
+    lunarRollHint: '',
     repeats: reminderLib.REPEATS,
     repeat: 'none',
     dailyRepeat: false,
@@ -105,10 +110,15 @@ Page({
     const target = lunar.fromDateText(solarDate)
     return target || { year: lunar.MIN_YEAR, month: 1, day: 1, isLeap: false }
   },
+  /**
+   * 农历「日」的候选：固定列到三十，不看当年这个月实际有几天。
+   * 腊月、六月这类月份有的年份只有 29 天，按实际天数列的话，
+   * 用户在建「腊月三十」这一天时根本选不到三十，只能退而求其次选廿九 —— 语义当场就没了。
+   * 选了三十、当年只有廿九时，由 computeLunarState 夹到月末并给出提示，引擎侧每年也会自动回退。
+   */
   buildDayOptions(year, month, isLeap) {
-    const total = lunar.lunarMonthDayCount(year, month, isLeap)
     const options = []
-    for (let day = 1; day <= total; day++) options.push({ value: day, label: lunar.dayText(day) })
+    for (let day = 1; day <= 30; day++) options.push({ value: day, label: lunar.dayText(day) })
     return options
   },
   /**
@@ -117,6 +127,10 @@ Page({
    *
    * noRoll 参数用于编辑存量数据：存量记录的 lunar.year 就是权威值，
    * 不能顺延 —— 否则「每天」这类提醒的触发日会被平移一年（2026-10-29 → 2027-10-18）。
+   *
+   * 回退只影响 picker 显示，不改用户语义：这一年没有闰六月、腊月只有 29 天，
+   * 显示回常规月/廿九，但 lunarDayValue / lunarIsLeapValue 保留原始选择，
+   * 否则编辑一次「腊月三十」就永久变成廿九了。引擎侧本来就会按年回退，不用在数据上改。
    */
   computeLunarState(seed, today, noRoll) {
     const source = seed || this.lunarFromSolar(today)
@@ -147,7 +161,14 @@ Page({
     let dayIndex = dayOptions.findIndex(item => item.value === day)
     if (dayIndex < 0) dayIndex = dayOptions.length - 1
 
-    const solarDate = resolveSolar(year, slot.month, dayOptions[dayIndex].value, slot.isLeap)
+    const dayShown = dayOptions[dayIndex].value
+    const solarDate = resolveSolar(year, slot.month, dayShown, slot.isLeap)
+    // 显示值与用户选的不一致时说一句，免得用户以为选错或算错。
+    // 天数要用当年实际天数比，不能用候选列表长度 —— 列表固定 30 项
+    const monthDays = lunar.lunarMonthDayCount(year, slot.month, slot.isLeap)
+    const hints = []
+    if (slot.isLeap !== isLeap) hints.push(`今年没有闰${lunar.CN_MONTHS[month - 1]}月，按${lunar.monthText(month, false)}算`)
+    if (day > monthDays) hints.push(`今年${lunar.monthText(slot.month, slot.isLeap)}只有 ${monthDays} 天，按${lunar.dayText(monthDays)}算`)
     return {
       lunarYear: year,
       lunarMonthOptions: months,
@@ -156,6 +177,10 @@ Page({
       lunarDayOptions: dayOptions,
       lunarDayLabels: dayOptions.map(item => item.label),
       lunarDayIndex: dayIndex,
+      // 用户语义上的农历日与闰月标记：不受「这一年有没有这一天」影响，原样保留
+      lunarDayValue: day,
+      lunarIsLeapValue: isLeap,
+      lunarRollHint: hints.join('，'),
       solarDate: solarDate || resolved || today
     }
   },
@@ -198,14 +223,17 @@ Page({
   lunarMonthChange(e) {
     const slot = this.data.lunarMonthOptions[Number(e.detail.value)]
     if (!slot) return
-    const day = (this.data.lunarDayOptions[this.data.lunarDayIndex] || {}).value || 1
+    // 「日」用用户语义上那个值：原来是三十、picker 因为小月显示廿九，换个月不该把三十改成廿九
+    const day = this.data.lunarDayValue || (this.data.lunarDayOptions[this.data.lunarDayIndex] || {}).value || 1
     this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day, isLeap: slot.isLeap }, this.data.today, this.data.noRoll), () => this.refreshDerived())
   },
   lunarDayChange(e) {
     const slot = this.data.lunarMonthOptions[this.data.lunarMonthIndex]
     const option = this.data.lunarDayOptions[Number(e.detail.value)]
     if (!slot || !option) return
-    this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: slot.isLeap }, this.data.today, this.data.noRoll), () => this.refreshDerived())
+    // 闰月语义跟着用户原来的选择走：这一年没闰六月时 picker 显示的是六月，
+    // 只改「日」不该顺手把「闰六月」抹成「六月」
+    this.setData(this.computeLunarState({ year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: this.data.lunarIsLeapValue }, this.data.today, this.data.noRoll), () => this.refreshDerived())
   },
   repeatChange(e) {
     const repeat = e.currentTarget.dataset.value
@@ -270,7 +298,12 @@ Page({
       date: this.data.solarDate,
       advanceDays: anniversary && !this.data.notify ? [0] : advanceDays,
       lunar: useLunar
-        ? { year: this.data.lunarYear, month: slot.month, day: option.value, isLeap: Boolean(slot.isLeap) }
+        ? {
+            year: this.data.lunarYear,
+            month: slot.month,
+            day: this.data.lunarDayValue || option.value,
+            isLeap: Boolean(this.data.lunarIsLeapValue)
+          }
         : null
     }
     if (anniversary) payload.notify = this.data.notify
@@ -323,9 +356,12 @@ Page({
   describeAnniversary(draft, next) {
     if (!next) return '这个日期算不出来，换一个日期吧'
     const when = reminderLib.relativeText(reminderLib.diffDays(this.data.today, next))
-    if (!this.data.notify) return `每年都有 · 下一次 ${next}（${when}）· 不推送，只在日历上标紫`
+    // 农历纪念日按农历月日逐年循环，换一年公历日期就会漂（八月十五：2026-09-25 → 2027-09-15）。
+    // 预览里把农历写出来，用户看到明年日期变了才不会以为是 bug。
+    const yearly = draft.calendar === 'lunar' ? `每年${reminderLib.eventText(draft)}` : '每年都有'
+    if (!this.data.notify) return `${yearly} · 下一次 ${next}（${when}）· 不推送，只在日历上标紫`
     const view = reminderLib.describe({ ...draft, enabled: true }, this.data.today)
-    return `每年都有 · 下一次 ${next}（${when}）· ${view.timeText} 提醒（${reminderLib.advanceText(draft)}）`
+    return `${yearly} · 下一次 ${next}（${when}）· ${view.timeText} 提醒（${reminderLib.advanceText(draft)}）`
   },
   describeReminder(draft) {
     const view = reminderLib.describe({ ...draft, enabled: true }, this.data.today)

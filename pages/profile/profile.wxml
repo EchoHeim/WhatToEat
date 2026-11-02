@@ -27,7 +27,7 @@
     </view>
   </view>
   <view class="settings card">
-    <view class="setting-row" bindtap="openReminders"><view><text class="setting-name">日期提醒</text><text class="setting-desc">{{reminderText}}</text></view><view class="setting-tail"><text wx:if="{{reminderBadge}}" class="setting-badge">{{reminderBadge}}</text><text class="setting-value">›</text></view></view>
+    <view class="setting-row" bindtap="openReminders"><view><text class="setting-name">提醒事项</text><text class="setting-desc">{{reminderText}}</text></view><view class="setting-tail"><text wx:if="{{reminderBadge}}" class="setting-badge">{{reminderBadge}}</text><text class="setting-value">›</text></view></view>
   </view>
   <view class="section-label">随机设置</view><view class="settings card">
     <picker range="{{recentOptions}}" value="{{recentIndex}}" bindchange="recentChange"><view class="setting-row"><view><text class="setting-name">过滤天数</text><text class="setting-desc">这段时间里吃过的菜不再推荐</text></view><text class="setting-value">{{recentText}} ›</text></view></picker>

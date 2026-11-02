@@ -4,6 +4,25 @@ const pick = require('../../utils/pick')
 const subscribe = require('../../utils/subscribe')
 const tabbar = require('../../utils/tabbar')
 
+/**
+ * 筛选项总数：四个维度都是数组，空数组不算数。
+ * 以前是数「有几个维度非空」，多选之后那样数不准 —— 选了中餐+日料也只算 1。
+ */
+function countFilters(filters) {
+  return Object.keys(filters || {}).reduce((sum, key) => sum + (filters[key] || []).length, 0)
+}
+
+/** 四组筛选项的高亮标记，wxml 直接读 item.active，省得模板里做数组查找 */
+function filterChoices(filters) {
+  const build = (list, selected) => list.map(value => ({ value, active: (selected || []).includes(value) }))
+  return {
+    mealChoices: build(store.MEALS, filters.meal),
+    categoryChoices: build(store.CATEGORIES, filters.category),
+    eatTypeChoices: build(store.EAT_TYPES, filters.eatType),
+    priceChoices: build(store.PRICES, filters.price)
+  }
+}
+
 function daysAgo(dateText) {
   if (!dateText) return '还没吃过'
   const day = 24 * 60 * 60 * 1000
@@ -50,13 +69,17 @@ function confettiPieces(count) {
 
 Page({
   data: {
-    dish: null, candidates: 0, filterOpen: false, rolling: false,
+    dish: null, filterOpen: false, rolling: false,
     burst: false, confetti: [],
     // 最近吃过的那几道：首页的「一键再记一次」入口，把记一餐从 5 步压到 2 步
     recentDishes: [],
-    filters: { meal: '', category: '', eatType: '', price: '' },
-    meals: store.MEALS, categories: store.CATEGORIES, eatTypes: store.EAT_TYPES, prices: store.PRICES,
+    // 四个维度都是数组，同一维里可以选多项（「中餐 + 日料」都算）
+    filters: { meal: [], category: [], eatType: [], price: [] },
+    // 选项带 active 标记交给 wxml 直接读，跟菜品表单同一套写法
+    mealChoices: [], categoryChoices: [], eatTypeChoices: [], priceChoices: [],
     filterCount: 0,
+    // 「开始随机选」按钮上的数字：按当前筛选真正能抽到的菜有几道
+    candidateCount: 0,
     checkin: { emoji: '🌤️', checked: false, title: '今天还没签到', sub: '记一餐、记心情，十秒搞定' },
     tabbar: tabbar.create(0)
   },
@@ -81,7 +104,9 @@ Page({
     this.setData({
       settings,
       filters,
-      filterCount: Object.values(filters).filter(Boolean).length,
+      filterCount: countFilters(filters),
+      candidateCount: this.getCandidates({ dishes }).length,
+      ...filterChoices(filters),
       checkin: this.checkinView(),
       recentDishes: this.recentViews(dishes, records, settings)
     })
@@ -122,7 +147,7 @@ Page({
   quickLog(e) {
     const id = e.currentTarget.dataset.id
     if (!id) return
-    const meal = this.data.filters.meal || store.getSettings().defaultMeal || '午餐'
+    const meal = (this.data.filters.meal || [])[0] || store.getSettings().defaultMeal || '午餐'
     wx.navigateTo({
       url: `/pages/record-form/record-form?dishId=${id}&meal=${encodeURIComponent(meal)}&date=${checkinLib.today()}`
     })
@@ -143,11 +168,11 @@ Page({
     const kept = keptPool.find(item => item.id === wantedId)
     if (!kept) return this.pick({ dishes })
     // 还是同一道菜，但从库里重取一次：评分 / 吃过次数可能被别的页面改过
-    this.setData({ dish: this.formatDish(kept), candidates: keptPool.length, rolling: false })
+    this.setData({ dish: this.formatDish(kept), rolling: false })
   },
   /** 落定一道菜并记住它，下次进首页还显示这道；celebrate=true 时放一次彩带 */
   landDish(list, options) {
-    if (!list.length) return this.setData({ dish: null, candidates: 0, rolling: false })
+    if (!list.length) return this.setData({ dish: null, rolling: false })
     let pool = list
     if (list.length > 1 && this.data.dish) {
       const others = list.filter(item => item.id !== this.data.dish.id)
@@ -156,12 +181,11 @@ Page({
     // 按权重抽：评分高、久没吃的更容易中；「允许重复」时最近吃过的降权而非直接入选
     const settings = store.getSettings()
     const result = pick.pickWeighted(pool, checkinLib.today(), { recentDays: Number(settings.recentDays) || 0 })
-    if (!result) return this.setData({ dish: null, candidates: 0, rolling: false })
+    if (!result) return this.setData({ dish: null, rolling: false })
     store.saveHomePick(result.id)
     const celebrate = Boolean(options && options.celebrate)
     this.setData({
       dish: this.formatDish(result),
-      candidates: list.length,
       rolling: false,
       burst: celebrate,
       confetti: celebrate ? confettiPieces() : []
@@ -210,27 +234,35 @@ Page({
   chooseFilter(e) {
     this.stopRolling()
     const { type, value } = e.currentTarget.dataset
-    const filters = { ...this.data.filters, [type]: this.data.filters[type] === value ? '' : value }
-    this.setData({ filters, filterCount: Object.values(filters).filter(Boolean).length })
-    this.pick()
+    const current = this.data.filters[type] || []
+    // 同一维度里点一次加上、再点一次取消，多个条件之间是「或」
+    const next = current.includes(value) ? current.filter(item => item !== value) : current.concat(value)
+    this.applyFilters({ ...this.data.filters, [type]: next })
+  },
+  /** 筛选变了：重算计数与高亮；当前没有菜才补抽一张，换菜只归「开始随机选」管 */
+  applyFilters(filters) {
+    this.setData({ filters, filterCount: countFilters(filters), candidateCount: this.getCandidates({ filters }).length, ...filterChoices(filters) })
+    if (!this.data.dish) this.pick()
   },
   clearFilters() {
     this.stopRolling()
-    this.setData({ filters: { meal: '', category: '', eatType: '', price: '' }, filterCount: 0 })
-    this.pick()
+    this.applyFilters({ meal: [], category: [], eatType: [], price: [] })
   },
   /** ignoreRecent=true：不套「避开最近吃过」这条规则，只按筛选条件筛 */
   getCandidates(options) {
-    const { meal, category, eatType, price } = this.data.filters
+    const { meal, category, eatType, price } = (options && options.filters) || this.data.filters
+    const meals = meal || [], categoryList = category || [], eatTypeList = eatType || [], priceList = price || []
     const settings = store.getSettings()
     const recentLimit = Date.now() - Number(settings.recentDays || 0) * 86400000
     // dishes 可由调用方传入：一次抽签会问两遍候选，没必要反序列化两遍菜库
     const source = options && options.dishes ? options.dishes : store.getDishes()
     let list = source.filter(item => item.enableRandom !== false)
-      .filter(item => !meal || (item.mealTypes || []).includes(meal))
-      .filter(item => !category || item.category === category)
-      .filter(item => !eatType || (item.eatTypes || []).includes(eatType))
-      .filter(item => !price || item.price === price)
+      // 「小吃」当餐次筛时也要认分类是「小吃」的菜：老菜品没打过这个餐次标签，
+      // 只按 mealTypes 匹配的话，点「小吃」会得到一张空列表
+      .filter(item => !meals.length || meals.some(name => (item.mealTypes || []).includes(name) || (name === '小吃' && store.dishCategories(item).includes('小吃'))))
+      .filter(item => !categoryList.length || categoryList.some(name => store.dishCategories(item).includes(name)))
+      .filter(item => !eatTypeList.length || eatTypeList.some(name => (item.eatTypes || []).includes(name)))
+      .filter(item => !priceList.length || priceList.includes(item.price))
     // allowRepeat=false 时硬过滤（用户预期就是「最近吃过的不出现」）；
     // =true 时不在这里排除，改由 pick 的权重压一档——允许重复不等于优先重复
     if (!(options && options.ignoreRecent) && !settings.allowRepeat && settings.recentDays > 0) {
@@ -259,10 +291,10 @@ Page({
     subscribe.topUpIfNeeded()
     if (this.data.rolling) return
     const list = this.getCandidates()
-    if (!list.length) return this.setData({ dish: null, candidates: 0, rolling: false })
+    if (!list.length) return this.setData({ dish: null, rolling: false })
     let step = 0
     const totalSteps = 12
-    this.setData({ rolling: true, candidates: list.length, rollingDish: list[Math.floor(Math.random() * list.length)] })
+    this.setData({ rolling: true, rollingDish: list[Math.floor(Math.random() * list.length)] })
     const spin = () => {
       if (step >= totalSteps) {
         this.rollTimer = null
@@ -282,7 +314,7 @@ Page({
     if (!this.data.dish) return
     // 同一个手势里顺手补一次：用户点「就吃这个」是明确要记这一餐了
     subscribe.topUpIfNeeded()
-    const meal = this.data.filters.meal || store.getSettings().defaultMeal || '午餐'
+    const meal = (this.data.filters.meal || [])[0] || store.getSettings().defaultMeal || '午餐'
     wx.navigateTo({ url: `/pages/record-form/record-form?dishId=${this.data.dish.id}&meal=${meal}` })
   }
 })

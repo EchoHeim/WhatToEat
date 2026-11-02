@@ -83,6 +83,19 @@ function isDateText(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))
 }
 
+/**
+ * 格式正确且这一天真实存在。
+ * isDateText('2026-02-30') 是 true，但 parseDate 会把它进位成 03-02 ——
+ * 一行坏数据能悄悄漂到隔壁那天去，谁都不报错。对外入口用这个，坏日期直接不命中。
+ */
+function isRealDate(value) {
+  const text = String(value || '')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const parts = text.split('-').map(Number)
+  const date = new Date(parts[0], parts[1] - 1, parts[2])
+  return date.getFullYear() === parts[0] && date.getMonth() + 1 === parts[1] && date.getDate() === parts[2]
+}
+
 function repeatLabel(value) {
   const found = REPEATS.find(item => item.value === value)
   return found ? found.label : REPEATS[0].label
@@ -127,6 +140,39 @@ function advanceText(reminder) {
     .join(' · ')
 }
 
+/**
+ * 一条记录绑定的农历月日。
+ * 日历标记（anniversaryHit）与循环计算（lunarOccurrences）都从这里取，
+ * 两条路径的月日必须同源，否则会出现「推送响了但日历上没标」。
+ * 兜底：老数据 calendar=lunar 却没有 lunar 字段时，拿 date 反推一次 ——
+ * 否则这条会在日历上消失、推送也永不触发，看着跟数据丢了没区别。
+ */
+function lunarInfo(reminder) {
+  const raw = reminder && reminder.lunar
+  if (raw && Number(raw.month) > 0 && Number(raw.day) > 0) {
+    return { month: Number(raw.month), day: Number(raw.day), isLeap: Boolean(raw.isLeap) }
+  }
+  const date = reminder && reminder.date
+  if (!isDateText(date)) return null
+  const back = lunar.fromDateText(date)
+  return back ? { month: back.month, day: back.day, isLeap: back.isLeap } : null
+}
+
+/**
+ * 某个公历日是不是这条农历记录「今年那一个农历日」。
+ * 两条回退规则与 lunarOccurrences 严格对齐：
+ * - 闰月：当年没这个闰月就落到常规月（闰六月生日，在没有闰六月的年份按六月初八过）
+ * - 大小月：当月只有 29 天时，三十落到廿九（腊月三十不会整年消失）
+ */
+function sameLunarDay(info, target) {
+  const month = info.month
+  if (target.month !== month) return false
+  const wantLeap = info.isLeap && lunar.leapMonth(target.year) === month
+  if (Boolean(target.isLeap) !== wantLeap) return false
+  const dayCount = lunar.lunarMonthDayCount(target.year, month, wantLeap)
+  return target.day === Math.min(info.day, dayCount)
+}
+
 /** 提醒对象的基准公历日期（农历模式由农历日期换算） */
 function baseDate(reminder) {
   if (!reminder) return ''
@@ -141,8 +187,9 @@ function baseDate(reminder) {
 /** 农历模式下基准日的文字描述，如「农历八月十五」 */
 function eventText(reminder) {
   if (!reminder) return ''
-  if (reminder.calendar === 'lunar' && reminder.lunar) {
-    return lunar.text({ month: Number(reminder.lunar.month), day: Number(reminder.lunar.day), isLeap: reminder.lunar.isLeap })
+  if (reminder.calendar === 'lunar') {
+    const info = lunarInfo(reminder)
+    if (info) return lunar.text(info)
   }
   return baseDate(reminder)
 }
@@ -214,7 +261,7 @@ function solarOccurrences(reminder, startDate, endDate) {
 
 function lunarOccurrences(reminder, startDate, endDate) {
   const repeat = reminder.repeat || 'none'
-  const target = reminder.lunar
+  const target = lunarInfo(reminder)
   const result = []
   if (!target) return result
 
@@ -224,9 +271,9 @@ function lunarOccurrences(reminder, startDate, endDate) {
     return result
   }
 
-  const baseMonth = Number(target.month) || 1
-  const baseDay = Number(target.day) || 1
-  const baseIsLeap = Boolean(target.isLeap)
+  const baseMonth = target.month
+  const baseDay = target.day
+  const baseIsLeap = target.isLeap
   const startLunar = lunar.fromDateText(startDate)
   if (!startLunar) return result
 
@@ -269,7 +316,7 @@ function lunarOccurrences(reminder, startDate, endDate) {
 
 /** 闭区间 [startDate, endDate] 内的全部事件日 */
 function occurrencesBetween(reminder, startDate, endDate) {
-  if (!reminder || !isDateText(startDate) || !isDateText(endDate) || startDate > endDate) return []
+  if (!reminder || !isRealDate(startDate) || !isRealDate(endDate) || startDate > endDate) return []
   const repeat = reminder.repeat || 'none'
   if (repeat === 'daily') return dailyOccurrences(reminder, startDate, endDate)
   if (reminder.calendar === 'lunar') return lunarOccurrences(reminder, startDate, endDate)
@@ -293,7 +340,7 @@ function triggersBetween(reminder, startDate, endDate) {
 
 /** 判断某天是否需要提醒（云函数逐条判定入口） */
 function isTriggerOn(reminder, dateText) {
-  if (!reminder || reminder.enabled === false || !isDateText(dateText)) return false
+  if (!reminder || reminder.enabled === false || !isRealDate(dateText)) return false
   return advanceList(reminder).some(offset => {
     const occurrence = addDays(dateText, offset)
     return occurrencesBetween(reminder, occurrence, occurrence).length > 0
@@ -320,7 +367,7 @@ function advanceForTrigger(reminder, dateText) {
 /** 下一次提醒触发日，没有则返回空串 */
 function nextTrigger(reminder, fromDate) {
   if (!reminder || reminder.enabled === false) return ''
-  const start = isDateText(fromDate) ? fromDate : today()
+  const start = isRealDate(fromDate) ? fromDate : today()
   const list = triggersBetween(reminder, start, addDays(start, SEARCH_HORIZON))
   return list.length ? list[0] : ''
 }
@@ -328,7 +375,7 @@ function nextTrigger(reminder, fromDate) {
 /** 下一个事件日（不含提前），没有则返回空串 */
 function nextOccurrence(reminder, fromDate) {
   if (!reminder) return ''
-  const start = isDateText(fromDate) ? fromDate : today()
+  const start = isRealDate(fromDate) ? fromDate : today()
   const list = occurrencesBetween(reminder, start, addDays(start, SEARCH_HORIZON))
   return list.length ? list[0] : ''
 }
@@ -378,17 +425,15 @@ function anniversaryNotify(reminder) {
  * 纪念日一律每年纪念，没有「仅一次」这回事——要只记一次请建普通提醒。
  */
 function anniversaryHit(reminder, dateText) {
-  if (!isAnniversary(reminder) || !isDateText(dateText)) return false
+  if (!isAnniversary(reminder) || !isRealDate(dateText)) return false
   if (reminder.enabled === false) return false
-  const date = String(reminder.date || '')
-  if (!isDateText(date)) return false
   if (reminder.calendar === 'lunar') {
-    const info = reminder.lunar
-    if (!info) return false
-    const target = lunar.fromDateText(dateText)
-    if (!target) return false
-    return target.month === Number(info.month) && target.day === Number(info.day) && Boolean(target.isLeap) === Boolean(info.isLeap)
+    const info = lunarInfo(reminder)
+    const target = info ? lunar.fromDateText(dateText) : null
+    return Boolean(target) && sameLunarDay(info, target)
   }
+  const date = String(reminder.date || '')
+  if (!isRealDate(date)) return false
   return date.slice(5) === dateText.slice(5)
 }
 
@@ -399,7 +444,7 @@ function anniversaryHit(reminder, dateText) {
  * 循环提醒不受影响（它明天/下个月还会再响）。
  */
 function describe(reminder, fromDate, nowText) {
-  const start = isDateText(fromDate) ? fromDate : today()
+  const start = isRealDate(fromDate) ? fromDate : today()
   const trigger = nextTrigger(reminder, start)
   const occurrence = nextOccurrence(reminder, start)
   const days = trigger ? diffDays(start, trigger) : null
@@ -441,6 +486,7 @@ module.exports = {
   addDays,
   diffDays,
   isDateText,
+  isRealDate,
   parseDate,
   repeatLabel,
   repeatText,

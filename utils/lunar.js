@@ -128,20 +128,30 @@ function solarToLunar(year, month, day) {
 /**
  * 农历 → 公历
  * isLeap 为 true 且当年确有该闰月时，定位到闰月；否则定位到常规月
+ * 该月没有第 day 天时（腊月三十遇上小月、闰月落在平年）落到当月最后一天：
+ * 不夹的话 offset 会溢出到下个月初一，「每年腊月三十」会被算成正月初一。
  */
 function lunarToSolar(year, month, day, isLeap) {
-  if (year < MIN_YEAR || year > MAX_YEAR) return null
-  const leap = leapMonth(year)
-  const targetLeap = Boolean(isLeap) && leap === month
+  // 参数一律先归一化成数字：调用方可能从表单 picker 拿到字符串，
+  // Number.isFinite('12') 是 false，直接判会静默返回 null
+  const y = Number(year)
+  const m = Number(month)
+  const d = Number(day)
+  if (!Number.isFinite(y) || y < MIN_YEAR || y > MAX_YEAR) return null
+  if (!Number.isFinite(m) || m < 1 || m > 12) return null
+  const leap = leapMonth(y)
+  const targetLeap = Boolean(isLeap) && leap === m
+  const last = targetLeap ? leapDays(y) : monthDays(y, m)
+  const safeDay = Math.min(Math.max(1, Math.floor(Number.isFinite(d) ? d : 1)), last)
 
   let offset = 0
-  for (let y = MIN_YEAR; y < year; y++) offset += yearDays(y)
-  for (let m = 1; m < month; m++) {
-    offset += monthDays(year, m)
-    if (leap === m) offset += leapDays(year)
+  for (let cursor = MIN_YEAR; cursor < y; cursor++) offset += yearDays(cursor)
+  for (let index = 1; index < m; index++) {
+    offset += monthDays(y, index)
+    if (leap === index) offset += leapDays(y)
   }
-  if (targetLeap) offset += monthDays(year, month)
-  offset += day - 1
+  if (targetLeap) offset += monthDays(y, m)
+  offset += safeDay - 1
   return offsetToSolar(offset)
 }
 

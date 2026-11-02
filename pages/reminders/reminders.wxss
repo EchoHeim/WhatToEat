@@ -2,27 +2,34 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .page-scroll { flex: 1; overflow: hidden; }
 .reminder-page { padding-bottom: 60rpx; }
 
-.title-row { display: flex; justify-content: space-between; align-items: center; margin: 12rpx 0 0; }
-.title-main { flex: 1; min-width: 0; padding-right: 20rpx; }
-.page-title { font-size: 44rpx; font-weight: 800; }
-.count { margin-top: 8rpx; font-size: 24rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 页面只有一条入口：诗句居中在最上面，正事（推送状态、提醒列表）往下排。
+   view 在 Skyline 下默认是纵向 flex，这里必须显式改成横向，否则 emoji 和诗句会上下两行 */
+.verse { display: flex; flex-direction: row; align-items: center; justify-content: center; margin: 10rpx 0 24rpx; color: #9A968D; font-size: 24rpx; }
+/* 标记单独一个 text 节点：跟汉字挤在同一个字符串里时，Skyline 会把它渲染成方块 */
+.verse-mark { margin-right: 10rpx; }
+/* 「提醒事项」跟着列表走，没提醒时整段不渲染；比分组标题（32rpx）大一档，层级才分得开 */
+.list-title { margin: 34rpx 8rpx 14rpx; font-size: 36rpx; font-weight: 800; }
 
-.banner { display: flex; align-items: center; margin-top: 32rpx; padding: 26rpx 28rpx; }
+/* 提醒状态 + 推送额度合成一张卡：上半今天几条，下半额度，中间一条分隔线 */
+.status { margin-top: 32rpx; padding: 0 28rpx; }
+.status-today { display: flex; align-items: center; padding: 28rpx 0; }
+.status-icon { margin-right: 20rpx; font-size: 44rpx; }
+.status-today-body { flex: 1; min-width: 0; }
+.status-divider { height: 1rpx; background: #EEE9E0; }
+.status-push { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; }
+.status-push-body { flex: 1; min-width: 0; margin-right: 18rpx; }
+.status-title { font-size: 29rpx; font-weight: 700; }
+.status-push-title { font-size: 27rpx; font-weight: 650; }
+.status-sub { margin-top: 7rpx; color: #9A968D; font-size: 21rpx; line-height: 1.5; }
+/* 「额度+1」比原来的「开启」宽，字号与内边距收一点，别把左侧文案挤掉。
+   宽度必须显式写：小程序 button 自带 width:100%，在 flex 行里会一路撑开，
+   把左边的「微信推送」文案压成两行 —— width:auto 收回到内容宽度，max-width 再兜一道。 */
+.push-btn { flex: none; width: auto; max-width: 200rpx; box-sizing: border-box; height: 62rpx; line-height: 62rpx; padding: 0 22rpx; font-size: 24rpx; }
 
 .cloud-hint { display: flex; flex-direction: column; margin-top: 32rpx; padding: 24rpx 28rpx; background: #FCEBEB; box-shadow: none; }
 .cloud-hint-title { color: #A32D2D; font-size: 27rpx; font-weight: 650; }
 .cloud-hint-body { margin-top: 10rpx; color: #791F1F; font-size: 23rpx; line-height: 1.6; }
 .cloud-hint-foot { margin-top: 10rpx; color: #A32D2D; font-size: 21rpx; line-height: 1.5; }
-.banner-icon { margin-right: 20rpx; font-size: 44rpx; }
-.banner-title { font-size: 29rpx; font-weight: 700; }
-.banner-sub { margin-top: 6rpx; color: #97938A; font-size: 21rpx; }
-
-.push { display: flex; align-items: center; justify-content: space-between; margin-top: 32rpx; padding: 24rpx 28rpx; }
-.push-body { flex: 1; min-width: 0; margin-right: 18rpx; }
-.push-title { font-size: 27rpx; font-weight: 650; }
-.push-sub { margin-top: 7rpx; color: #9A968D; font-size: 21rpx; line-height: 1.5; }
-/* 「额度+1」比原来的「开启」宽，字号与内边距收一点，别把左侧文案挤掉 */
-.push-btn { flex: none; height: 62rpx; line-height: 62rpx; padding: 0 24rpx; font-size: 24rpx; }
 
 .push-guide { margin-top: 20rpx; padding: 26rpx 28rpx; background: #FBF8F1; box-shadow: none; }
 .guide-title { color: #6C6961; font-size: 25rpx; font-weight: 650; }

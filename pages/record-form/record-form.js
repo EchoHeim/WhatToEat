@@ -11,14 +11,14 @@ const SHEET_PAGE_SIZE = 8
 /** 补一行副标题（分类 · 首个标签），wxml 里不写复杂表达式 */
 function withMeta(dish) {
   const tag = (dish.tags || [])[0] || ''
-  return { ...dish, metaText: [dish.category, tag].filter(Boolean).join(' · ') }
+  return { ...dish, metaText: [store.dishCategories(dish)[0], tag].filter(Boolean).join(' · ') }
 }
 
 /** 菜名 / 标签 / 分类都能命中 */
 function matchDishes(dishes, keyword) {
   const kw = String(keyword || '').trim().toLowerCase()
   if (!kw) return dishes
-  return dishes.filter(item => `${item.name || ''} ${(item.tags || []).join(' ')} ${item.category || ''}`.toLowerCase().includes(kw))
+  return dishes.filter(item => `${item.name || ''} ${(item.tags || []).join(' ')} ${store.dishCategories(item).join(' ')}`.toLowerCase().includes(kw))
 }
 
 Page({

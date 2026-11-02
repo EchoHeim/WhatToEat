@@ -5,6 +5,6 @@
  *
  * 发版时跟 `cli upload -v` 传的版本号一起改这里。
  */
-const APP_VERSION = 'Ver0.0.9'
+const APP_VERSION = 'Ver0.0.10'
 
 module.exports = { APP_VERSION }

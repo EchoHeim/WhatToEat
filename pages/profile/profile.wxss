@@ -28,7 +28,8 @@ page { height: 100vh; display: flex; flex-direction: column; }
 .new-card { flex: 1; display: flex; align-items: center; min-width: 0; padding: 22rpx 18rpx; background: #FFFDF8; border-radius: 24rpx; box-shadow: 0 10rpx 34rpx rgba(67, 49, 34, .07); }
 .new-card + .new-card { margin-left: 16rpx; }
 .new-card-hover { opacity: .72; }
-.new-emoji { margin-right: 12rpx; font-size: 36rpx; }
+/* 图标与文字拉开：12rpx 时两行字几乎贴着图标，文字整体也过分靠左 */
+.new-emoji { margin-right: 24rpx; font-size: 36rpx; }
 .new-body { display: flex; flex-direction: column; min-width: 0; }
 .new-name { display: block; color: #2E2C28; font-size: 26rpx; font-weight: 600; }
 .new-desc { display: block; margin-top: 5rpx; color: #9A968D; font-size: 19rpx; }

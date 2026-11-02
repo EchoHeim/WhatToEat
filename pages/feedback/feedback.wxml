@@ -3,7 +3,7 @@
   <view class="intro">
     <view class="eyebrow">FEEDBACK</view>
     <view class="page-title">想听你说点什么</view>
-    <view class="intro-sub">用得别扭的地方、想要的功能，甚至一句吐槽都行。一个人做的，看到都会回。</view>
+    <view class="intro-sub">用得别扭的地方、想要的功能，甚至一句吐槽都行。个人开发者，看到都会回。</view>
   </view>
 
   <view class="form-card card">
@@ -35,8 +35,8 @@
     </view>
 
     <view class="field no-border">
-      <view class="label">联系方式<text class="label-extra">选填</text></view>
-      <input class="text-input" placeholder="微信号 / 邮箱，方便回访" value="{{contact}}" bindinput="contactChange" maxlength="40" />
+      <view class="label">邮箱<text class="label-extra">选填 · 只用来回信</text></view>
+      <input class="text-input" placeholder="留一个的话，需要时按这个回复你" value="{{email}}" bindinput="emailChange" maxlength="60" />
     </view>
   </view>
 
@@ -49,5 +49,5 @@
   </view>
 
   <button class="primary-btn submit-btn {{submitting ? 'is-busy' : ''}}" bindtap="submit" loading="{{submitting}}" disabled="{{submitting}}">{{submitting ? '正在提交' : '提交反馈'}}</button>
-  <view class="foot-hint">提交后会写进开发者的云数据库，不会公开显示。</view>
+  <view class="foot-hint">提交后只存进开发者的云数据库，不公开显示；邮箱也只用来回信。</view>
 </view></scroll-view>

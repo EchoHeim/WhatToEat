@@ -32,14 +32,14 @@
           <picker range="{{lunarMonthLabels}}" value="{{lunarMonthIndex}}" bindchange="lunarMonthChange"><view class="small-picker">{{lunarMonthLabels[lunarMonthIndex]}} ›</view></picker>
           <picker range="{{lunarDayLabels}}" value="{{lunarDayIndex}}" bindchange="lunarDayChange"><view class="small-picker">{{lunarDayLabels[lunarDayIndex]}} ›</view></picker>
         </view>
-        <view class="resolve">对应公历 {{solarDate}}</view>
+        <view class="resolve">对应公历 {{solarDate}}{{lunarRollHint ? ' · ' + lunarRollHint : ''}}</view>
       </block>
     </view>
 
     <view wx:if="{{kind === 'anniversary'}}" class="field">
       <view class="label">循环方式</view>
       <view class="fixed-line">每年</view>
-      <view class="field-hint">纪念日每年都有，按公历同月同日</view>
+      <view class="field-hint">纪念日每年都有，{{calendar === 'lunar' ? '按农历同月同日（公历日期每年会变）' : '按公历同月同日'}}</view>
     </view>
 
     <view wx:else class="field">

@@ -29,7 +29,7 @@ Page({
     type: 'idea',
     placeholder: PLACEHOLDER.idea,
     content: '',
-    contact: '',
+    email: '',
     images: [],
     maxShots: MAX_SHOTS,
     env: { version: version.APP_VERSION, model: '', system: '' },
@@ -70,7 +70,7 @@ Page({
     this.setData({ type, placeholder: PLACEHOLDER[type] || PLACEHOLDER.other })
   },
   contentChange(e) { this.setData({ content: e.detail.value }) },
-  contactChange(e) { this.setData({ contact: e.detail.value }) },
+  emailChange(e) { this.setData({ email: e.detail.value }) },
   addShot() {
     const remain = MAX_SHOTS - this.data.images.length
     if (remain <= 0) return
@@ -126,7 +126,7 @@ Page({
     return {
       type: this.data.type,
       content,
-      contact: String(this.data.contact || '').trim(),
+      email: String(this.data.email || '').trim(),
       images,
       version: env.version,
       model: env.model,
@@ -162,10 +162,10 @@ Page({
       if (!result.ok) throw new Error(result.message || '提交失败')
       wx.setStorageSync(COOLDOWN_KEY, Date.now())
       wx.hideLoading()
-      this.setData({ submitting: false, content: '', contact: '', images: [] })
+      this.setData({ submitting: false, content: '', email: '', images: [] })
       wx.showModal({
         title: '收到了',
-        content: '谢谢，会认真看。留了联系方式的话，需要时我会找你。',
+        content: '谢谢，会认真看。留了邮箱的话，需要时按那个地址回你。',
         showCancel: false,
         confirmText: '好',
         success: () => wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/profile/profile' }) })

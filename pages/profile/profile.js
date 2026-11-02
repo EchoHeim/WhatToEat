@@ -18,9 +18,13 @@ Page({
     const favorite = [...dishes].filter(item => item.eatCount).sort((a, b) => b.score - a.score || b.eatCount - a.eatCount)[0]
     const reminders = store.getReminders()
     const todayReminders = store.countTodayReminders()
+    // 推送额度跟着「日期提醒」一起露出来：不用点进提醒页就知道还剩几次，
+    // 额度为 0 时说「已用完」，跟提醒页那句文案保持一个口径
+    const quota = Number(settings.pushQuota || 0)
+    const quotaText = quota > 0 ? `剩余推送额度 ${quota} 次` : '推送额度已用完'
     const reminderText = !reminders.length
-      ? '公历 / 农历 · 循环提醒 · 提前提醒'
-      : `${reminders.length} 条提醒${todayReminders ? ` · 今天 ${todayReminders} 条` : ''}`
+      ? `公历 / 农历 · 循环提醒 · ${quotaText}`
+      : `${reminders.length} 条提醒${todayReminders ? ` · 今天 ${todayReminders} 条` : ''} · ${quotaText}`
     // 记录里的 date 理论上一定有，但云端可能带回来旧版本的脏数据。
     // 以前直接 item.date.startsWith 会抛 TypeError，整个 refresh 挂掉、这一页白屏且不报错。
     const monthRecords = records.filter(item => String((item && item.date) || '').startsWith(monthPrefix)).length

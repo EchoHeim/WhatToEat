@@ -14,7 +14,7 @@ Page({
     let dishes = all.slice()
     const keyword = this.data.keyword.trim().toLowerCase()
     if (keyword) dishes = dishes.filter(item => item.name.toLowerCase().includes(keyword) || (item.tags || []).join(' ').toLowerCase().includes(keyword))
-    if (this.data.activeCategory !== '全部') dishes = dishes.filter(item => item.category === this.data.activeCategory)
+    if (this.data.activeCategory !== '全部') dishes = dishes.filter(item => store.dishCategories(item).includes(this.data.activeCategory))
     const sort = this.data.sort
     // createdAt 兜底 0：早期手建 / 导入的菜没有这个字段，相减得 NaN，
     // 排序结果就变成「看引擎心情」，表现为「刚加的菜跑到列表中间」

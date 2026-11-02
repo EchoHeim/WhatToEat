@@ -22,7 +22,12 @@ const db = cloud.database()
 const COLLECTION = 'feedbacks'
 const TYPE_TEXT = { idea: '功能建议', bug: '遇到问题', other: '其他' }
 const CONTENT_LIMIT = 500
-const CONTACT_LIMIT = 40
+/**
+ * 只收邮箱，**不要**收微信号 / QQ 号 / 手机号。
+ * 2026-11 提审被驳回，理由正是运营规范 5.12「非合理场景下收集微信帐号等敏感信息」——
+ * 当时字段提示语写的是「微信号 / 邮箱」。联系方式一旦能填 IM 账号就踩线，别加回来。
+ */
+const EMAIL_LIMIT = 60
 const IMAGE_LIMIT = 3
 /** webhook 是外部请求，给 4 秒；配合函数 20 秒超时，留足余量 */
 const REQUEST_TIMEOUT_MS = 4000
@@ -101,7 +106,7 @@ function buildMarkdown(document, imageUrls) {
     '',
     quoteBlock(document.content)
   ]
-  if (document.contact) lines.push('', `**联系方式**：${document.contact}`)
+  if (document.email) lines.push('', `**邮箱**：${document.email}`)
   if (imageUrls && imageUrls.length) {
     lines.push(`**截图**：${imageUrls.map((url, index) => `[第 ${index + 1} 张](${url})`).join(' · ')}`)
   } else if (document.images && document.images.length) {
@@ -140,7 +145,7 @@ function buildFeishuPost(document, imageUrls) {
     .slice(0, MARKDOWN_CONTENT_LIMIT)
     .split(/\r?\n/)
     .forEach(line => { rows.push([{ tag: 'text', text: line || ' ' }]) })
-  if (document.contact) rows.push([{ tag: 'text', text: `联系方式：${document.contact}` }])
+  if (document.email) rows.push([{ tag: 'text', text: `邮箱：${document.email}` }])
   // 图片只能给链接：飞书的 post 里 img 标签要 image_key，那得有应用凭证才拿得到
   if (imageUrls && imageUrls.length) {
     imageUrls.forEach((url, index) => {
@@ -261,7 +266,7 @@ exports.main = async event => {
     _openid: openid,
     type,
     content,
-    contact: text(event && event.contact, CONTACT_LIMIT),
+    email: text(event && event.email, EMAIL_LIMIT),
     images,
     version: text(event && event.version, 40),
     model: text(event && event.model, 80),

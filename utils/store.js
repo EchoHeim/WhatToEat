@@ -34,9 +34,12 @@ const KEYS = {
  */
 const SUBSCRIBE_STATE_KEY = 'wte_sub_state_v1'
 
-const CATEGORIES = ['中餐', '西餐', '日料', '韩餐', '面食', '米饭', '火锅', '烧烤', '快餐', '小吃', '甜品', '饮品', '其他']
+// 「小吃」已经从分类里拿掉（它更像餐次/吃法），但不是所有老菜品都能迁过来 ——
+// dish-form 打开老数据时会把它的分类临时补回列表，别让存量菜显示成「没选分类」
+const CATEGORIES = ['中餐', '西餐', '日料', '韩餐', '面食', '米饭', '火锅', '烧烤', '快餐', '甜品', '饮品', '其他']
 const TAGS = ['早餐', '午餐', '晚餐', '夜宵', '自己做', '外卖', '堂食', '清淡', '辣', '高蛋白', '减脂', '快手', '聚餐']
-const MEALS = ['早餐', '午餐', '晚餐', '夜宵']
+// 「小吃」不是正餐，但它既能当餐次记（下午垫一口），也能当筛选用 —— 放最后不抢正餐的位置
+const MEALS = ['早餐', '午餐', '晚餐', '夜宵', '小吃']
 const EAT_TYPES = ['自己做', '外卖', '堂食']
 const PRICES = ['经济', '普通', '丰盛', '豪华']
 /** 每一档对应的价格区间，只用于界面文案，不参与数据匹配 */
@@ -486,6 +489,18 @@ function getDishes() {
   return readCache.dishes
 }
 function getDish(id) { return getDishes().find(item => item.id === id) }
+
+/**
+ * 菜品的全部分类。
+ * 新数据存 categories 数组（分类可以多选），老数据只有单个 category 字符串。
+ * 所有读取分类的地方都从这里取，别在页面里自己判断 Array.isArray —— 漏一处就会出现
+ * 「老菜在某个页面筛不出来」这种只在老数据上复现的问题。
+ */
+function dishCategories(dish) {
+  if (!dish) return []
+  if (Array.isArray(dish.categories) && dish.categories.length) return dish.categories
+  return dish.category ? [dish.category] : []
+}
 
 // ---------- 菜品聚合 ----------
 /**
@@ -1086,11 +1101,26 @@ function backfillNextTriggerDate() {
   let changed = false
   const now = Date.now()
   reminders.forEach(item => {
-    if (!item || item.nextTriggerDate !== undefined) return
-    item.nextTriggerDate = computeNextTriggerDate(item)
-    item.updatedAt = now
-    markDirty('reminders', item.id)
-    changed = true
+    if (!item) return
+    if (item.nextTriggerDate === undefined) {
+      item.nextTriggerDate = computeNextTriggerDate(item)
+      item.updatedAt = now
+      markDirty('reminders', item.id)
+      changed = true
+      return
+    }
+    // 循环提醒不该「没有下一次」。旧版农历换算把不存在的日子算溢出到下月初一
+    // （腊月三十 → 正月初一），baseDate 跟着偏，nextTrigger 直接算空，
+    // 云端从此扫不到这条。碰到哨兵值就重算一次，让它自己恢复。
+    if (item.nextTriggerDate === NEXT_TRIGGER_NONE && item.repeat !== 'none' && item.enabled !== false) {
+      const next = computeNextTriggerDate(item)
+      if (next !== item.nextTriggerDate) {
+        item.nextTriggerDate = next
+        item.updatedAt = now
+        markDirty('reminders', item.id)
+        changed = true
+      }
+    }
   })
   if (changed) set(KEYS.reminders, reminders)
   return changed
@@ -1880,4 +1910,4 @@ function syncThen(callback) {
     .catch(error => console.error('云同步失败，使用本地数据', error))
 }
 
-module.exports = { SUBSCRIBE_STATE_KEY, CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, syncThen, getDishes, getDish, saveDish, deleteDish, getHomePick, saveHomePick, getRecords, getRecord, saveRecord, deleteRecord, normalizeClock, clockFromStamp, recordClock, exportSnapshot, writeSnapshotFile, readSnapshotFile, previewSnapshot, applySnapshot, clearAllData, storageReport, storageUsage, getRecordYears, pruneTombstones, pruneErrorLogs, computeNextTriggerDate, backfillNextTriggerDate, NEXT_TRIGGER_NONE, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, onCloudError, flushCloudQueue, logError, resetReadCache }
+module.exports = { SUBSCRIBE_STATE_KEY, CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, syncThen, getDishes, getDish, dishCategories, saveDish, deleteDish, getHomePick, saveHomePick, getRecords, getRecord, saveRecord, deleteRecord, normalizeClock, clockFromStamp, recordClock, exportSnapshot, writeSnapshotFile, readSnapshotFile, previewSnapshot, applySnapshot, clearAllData, storageReport, storageUsage, getRecordYears, pruneTombstones, pruneErrorLogs, computeNextTriggerDate, backfillNextTriggerDate, NEXT_TRIGGER_NONE, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, onCloudError, flushCloudQueue, logError, resetReadCache }

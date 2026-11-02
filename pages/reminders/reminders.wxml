@@ -1,37 +1,41 @@
 <navigation-bar title="日期提醒" color="#292824" background="#F7F4ED"></navigation-bar>
-<scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad reminder-page">
-  <view class="title-row">
-    <view class="title-main"><view class="page-title">日期提醒</view><view class="muted count">循环 · 提前提醒</view></view>
-  </view>
+<scroll-view class="page-scroll" scroll-y type="list">  <view class="page-pad reminder-page">
+    <view wx:if="{{verse}}" class="verse"><text class="verse-mark">{{mark}}</text><text class="verse-text">{{verse}}</text></view>
 
-  <view wx:if="{{cloudHint}}" class="cloud-hint card">
+    <view wx:if="{{cloudHint}}" class="cloud-hint card">
     <text class="cloud-hint-title">云端同步未生效</text>
     <text class="cloud-hint-body">{{cloudHint}}</text>
     <text class="cloud-hint-foot">提醒数据目前只保存在本机，修好后重新保存一次即可同步。</text>
   </view>
 
-  <view wx:if="{{todayCount}}" class="banner card">
-    <text class="banner-icon">🔔</text>
-    <view class="banner-body"><view class="banner-title">今天有 {{todayCount}} 条提醒</view><view class="banner-sub">{{bannerSub}}</view></view>
-  </view>
-
-  <view class="push card">
-    <view class="push-body">
-      <view class="push-title">微信推送</view>
-      <view class="push-sub">{{pushHint}}</view>
+  <view class="status card">
+    <view wx:if="{{todayCount}}" class="status-today">
+      <text class="status-icon">🔔</text>
+      <view class="status-today-body">
+        <view class="status-title">今天有 {{todayCount}} 条提醒</view>
+      </view>
     </view>
-    <button class="ghost-btn push-btn" bindtap="enablePush">{{pushAuto === 'reject' || pushAuto === 'off' ? '去设置' : '额度+1'}}</button>
+    <view wx:if="{{todayCount}}" class="status-divider"></view>
+    <view class="status-push">
+      <view class="status-push-body">
+        <view class="status-push-title">微信推送</view>
+        <view class="status-sub">{{pushHint}}</view>
+      </view>
+      <button class="ghost-btn push-btn" bindtap="enablePush">{{pushAuto === 'reject' || pushAuto === 'off' ? '去设置' : '额度+1'}}</button>
+    </view>
   </view>
 
   <view class="push-guide card">
     <view class="guide-title">推送怎么才能真正收到</view>
     <view class="guide-item"><text class="guide-index">1</text><text class="guide-text">第一次点「额度+1」时，在弹窗底部勾上「总是保持以上选择，不再询问」，之后就不会再弹窗打扰你。</text></view>
-    <view class="guide-item"><text class="guide-index">2</text><text class="guide-text">勾上之后额度会自动补：首页抽签、记录一餐、签到这些点击里，只要额度低于 60 次就静默续上一条。</text></view>
-    <view class="guide-item"><text class="guide-index">3</text><text class="guide-text">攒到 60 次就停手，不再自动加；想要更多就点「额度+1」，那个按钮任何时候都管用。</text></view>
-    <view class="guide-item"><text class="guide-index">4</text><text class="guide-text">只要额度大于 0，提醒到点就会自动推送，推一条扣一次；额度用完才会停。</text></view>
+    <view class="guide-item"><text class="guide-index">2</text><text class="guide-text">勾上之后额度会自动补充：在首页抽签、记录一餐、签到这些点击里，只要剩余额度低于 60，就静默补上一条。</text></view>
+    <view class="guide-item"><text class="guide-index">3</text><text class="guide-text">剩余额度超过 60 次，就不再自动加；如果想要更多就点「额度+1」。</text></view>
+    <view class="guide-item"><text class="guide-index">4</text><text class="guide-text">只要额度大于 0，提醒到点就会自动推送，推一条扣一次；额度用完就无法推送消息提醒。</text></view>
     <view class="guide-item"><text class="guide-index">5</text><text class="guide-text">攒下的额度永久有效、不会过期；推送会出现在微信的「服务通知」里。</text></view>
   </view>
 
+  <!-- 标题跟着列表走：一条提醒都没有时不出现，别让空页面顶上顶个大标题 -->
+  <view wx:if="{{total}}" class="list-title">提醒事项</view>
   <view wx:for="{{groups}}" wx:for-item="group" wx:key="key" class="group">
     <view class="group-head"><text class="section-title">{{group.title}}</text><text wx:if="{{group.hint}}" class="group-hint">{{group.hint}}</text><text class="group-count">{{group.items.length}} 条</text></view>
     <view class="card list-card">

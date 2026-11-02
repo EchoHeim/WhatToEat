@@ -1,6 +1,7 @@
 const store = require('../../utils/store')
 const reminderLib = require('../../utils/reminder')
 const subscribe = require('../../utils/subscribe')
+const { randomQuote, randomMark } = require('../../utils/quotes')
 
 const GROUP_DEFS = [
   { key: 'anniversary', title: '纪念日', hint: '' },
@@ -13,25 +14,18 @@ const GROUP_DEFS = [
 /**
  * 推送卡片副标题：四种订阅状态各一句话。
  * 放在这里而不是 wxml 里堆三元——四层嵌套的三元读起来就是一团乱麻。
+ * 剩余次数并进这句：顶部横幅已经不单独显示它了，别漏掉这个最实在的数字。
  */
 function pushHintText(ready, auto, quota) {
   if (!ready) return '未配置订阅消息模板 ID，当前仅应用内提醒'
   if (auto === 'off') return '订阅消息总开关已关闭，点右边去设置页打开'
   if (auto === 'reject') return '订阅已被拒收，点右边去设置页改成允许'
   if (auto === 'accept') {
-    return quota >= subscribe.HIGH_WATER
-      ? `已达 ${subscribe.HIGH_WATER} 次上限，自动补已停 · 剩余 ${quota} 次`
-      : '自动补额度已开启 · 额度会在下次点击时补上'
+    if (quota >= subscribe.HIGH_WATER) return `剩余 ${quota} 次 · 已达 ${subscribe.HIGH_WATER} 次上限，自动补已停`
+    if (quota > 0) return `剩余 ${quota} 次 · 额度会自动补上`
+    return '额度用完了 · 点任意入口都会自动补一条'
   }
-  return '首次点「额度+1」时勾选「总是保持」，之后就能自动补'
-}
-
-/** 顶部横幅副标题：开了自动补就别再说「收到后请再次开启」，到了上限也别再承诺自动补 */
-function bannerSubText(auto, quota) {
-  if (auto === 'accept' && quota < subscribe.HIGH_WATER) {
-    return quota > 0 ? `微信推送剩余 ${quota} 次，会自动补` : '额度会在下次点击时自动补上'
-  }
-  return quota > 0 ? `微信推送剩余 ${quota} 次` : '微信推送次数已用完，收到后请再次开启'
+  return '首次点「额度+1」时勾选「总是保持」，之后抽签、签到、记录就能自动补'
 }
 
 /** 推送卡片那几个字段的补丁：首屏 refresh 和异步回填共用一份，避免两处文案算岔 */
@@ -40,8 +34,7 @@ function pushPatch(ready, auto, quota) {
     pushReady: ready,
     pushAuto: auto,
     pushQuota: quota,
-    pushHint: pushHintText(ready, auto, quota),
-    bannerSub: bannerSubText(auto, quota)
+    pushHint: pushHintText(ready, auto, quota)
   }
 }
 
@@ -56,11 +49,18 @@ Page({
     /** 'accept' 自动补已开 / 'reject' 被拒收 / 'off' 总开关关了 / '' 还没勾过 */
     pushAuto: '',
     pushHint: '',
-    bannerSub: '',
+    // 标题下那句诗：每进一次页面换一句，跟签到页共用同一个句子库。
+    // mark 单独存一个字段、单独渲染成节点 —— 拼进同一个字符串里，
+    // Skyline 会把 emoji 渲染成方块（签到页一直是两个 text 节点，所以没这问题）
+    verse: '',
+    mark: '',
     cloudHint: '',
     loading: true
   },
   onShow() {
+    // 每次进来换一句诗 + 一个草木花叶的小标记（跟签到页共用同一套库，跨页也不会连着撞）
+    const quote = randomQuote()
+    this.setData({ verse: quote, mark: quote ? randomMark() : '' })
     // 先画本地缓存；同步放后台，不挡首屏
     this.refresh()
     // 探到「总是保持」的真实勾选状态再回填推送卡片，不然文案会停在上一轮的旧结论。
@@ -107,7 +107,10 @@ Page({
         advanceText: reminderLib.anniversaryNotify(item)
           ? `${item.time || reminderLib.DEFAULT_TIME} 提醒`
           : '只在日历上标记 · 数字变紫',
-        eventLabel: next || '',
+        // 农历纪念日只写公历日期会让人以为「今年 9-25、明年还是 9-25」，把农历一起带上
+        eventLabel: next
+          ? (item.calendar === 'lunar' ? `${reminderLib.eventText(item)} · ${next}` : next)
+          : '',
         dateText,
         statusText: dateText,
         triggerText: '',

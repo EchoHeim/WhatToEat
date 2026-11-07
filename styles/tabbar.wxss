@@ -10,10 +10,12 @@
   height: 122rpx;
   padding: 0 10rpx;
   box-sizing: border-box;
-  background: rgba(255, 253, 248, .42);
-  border: 1rpx solid rgba(255, 255, 255, .5);
+  background: rgba(255, 253, 248, 0.42);
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
   border-radius: 999rpx;
-  box-shadow: 0 18rpx 46rpx rgba(67, 49, 34, .14), 0 2rpx 8rpx rgba(67, 49, 34, .05);
+  box-shadow:
+    0 18rpx 46rpx rgba(67, 49, 34, 0.14),
+    0 2rpx 8rpx rgba(67, 49, 34, 0.05);
   backdrop-filter: blur(40rpx) saturate(170%);
 }
 
@@ -28,10 +30,24 @@
 }
 
 /* 选中项垫一层极淡的橙，不抢图标本身 */
-.app-tab.on { background: rgba(232, 93, 63, .10); }
+.app-tab.on {
+  background: rgba(232, 93, 63, 0.1);
+}
 /* 按下反馈：手指落上去就该有反应，否则分不清是没点中还是没响应 */
-.app-tab-hover { opacity: .55; }
+.app-tab-hover {
+  opacity: 0.55;
+}
 
-.app-tab-icon { width: 44rpx; height: 44rpx; }
-.app-tab-text { margin-top: 4rpx; color: #8B8B86; font-size: 19rpx; }
-.app-tab.on .app-tab-text { color: #E85D3F; font-weight: 600; }
+.app-tab-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
+.app-tab-text {
+  margin-top: 4rpx;
+  color: #8b8b86;
+  font-size: 19rpx;
+}
+.app-tab.on .app-tab-text {
+  color: #e85d3f;
+  font-weight: 600;
+}

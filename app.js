@@ -1,4 +1,5 @@
 const store = require('./utils/store')
+const envConfig = require('./utils/env')
 
 // 云写失败别刷屏：10 秒内只提示一次，剩下的靠日志
 let lastCloudHintAt = 0
@@ -11,7 +12,7 @@ App({
       const now = Date.now()
       if (now - lastCloudHintAt < 10000) return
       lastCloudHintAt = now
-      const code = String(error && (error.errCode !== undefined ? error.errCode : error.code) || '')
+      const code = String((error && (error.errCode !== undefined ? error.errCode : error.code)) || '')
       // 集合没建 / 权限不对这类配置问题要给出可操作的指引，弹窗说清楚
       if (code === '-502005' || code === '-502003' || code === '-502002') {
         wx.showModal({
@@ -33,7 +34,7 @@ App({
     }
     if (wx.cloud) {
       wx.cloud.init({
-        env: 'cloud1-d7gua1dxyb865738c',
+        env: envConfig.CLOUD_ENV,
         traceUser: true
       })
       store.syncFromCloud().catch(error => console.error('云数据初始化失败', error))

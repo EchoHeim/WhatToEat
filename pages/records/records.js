@@ -76,6 +76,8 @@ Page({
   onTabTap(e) {
     tabbar.go(e)
   },
+  // 见首页同一处注释：不定义它，「转发」和「复制链接」都是灰的
+  onShareAppMessage() { return { title: '今天吃什么 · 帮我决定这一顿', path: '/pages/index/index' } },
   onLoad() {
     const now = new Date()
     this.year = now.getFullYear()
@@ -167,23 +169,35 @@ Page({
       const checkin = checkinByDate[date]
       const mood = checkin ? checkinLib.normalizeMood(checkin.mood, checkin.moodKey) : null
       const dish = meals.length ? dishMap.get(meals[0].dishId) || {} : {}
+      // 节日当天：数字变亮蓝。日历是回顾用的，这个月已过的节日也照样标
+      const hasFestival = festivalLib.festivalsOf(date).length > 0
+      // 自定义纪念日：数字变亮紫，同一天既有节日又有纪念日时紫色赢
+      const hasAnniversary = festivalLib.anniversariesOn(reminders, date).length > 0
+      // 有提醒的日子：数字下面点一个红点（纪念日不点，它已经有紫色数字了）
+      const hasReminder = festivalLib.hasReminderOn(reminders, date)
+      const isToday = date === todayText
+      // 读屏用：日历格在视觉上只有一个数字，颜色、紫字、红点全是纯视觉信息，
+      // 所以把「今天 / 几餐 / 节日 / 纪念日 / 提醒」都念一遍。
+      // 注意这五个判断上面已经各算过一次，这里只是拼句子，没有多跑查询。
+      const labelBits = [`${this.month} 月 ${day} 日`]
+      if (isToday) labelBits.push('今天')
+      if (meals.length) labelBits.push(`${meals.length} 餐`)
+      if (hasFestival) labelBits.push('节日')
+      if (hasAnniversary) labelBits.push('纪念日')
+      if (hasReminder) labelBits.push('有提醒')
       cells.push({
         key: date,
         day,
         date,
-        // 读屏用：日历格只有数字，光念「28」没有意义，得把月份和当天有几餐一起说清
-        label: `${this.month} 月 ${day} 日${meals.length ? `，${meals.length} 餐` : ''}`,
+        label: labelBits.join('，'),
         mark: mood ? mood.emoji : dish.emoji || (meals.length ? '●' : ''),
         moodIcon: mood ? mood.icon : '',
         hasMood: Boolean(mood),
-        // 节日当天：数字变亮蓝。日历是回顾用的，这个月已过的节日也照样标
-        hasFestival: festivalLib.festivalsOf(date).length > 0,
-        // 自定义纪念日：数字变亮紫，同一天既有节日又有纪念日时紫色赢
-        hasAnniversary: festivalLib.anniversariesOn(reminders, date).length > 0,
-        // 有提醒的日子：数字下面点一个红点（纪念日不点，它已经有紫色数字了）
-        hasReminder: festivalLib.hasReminderOn(reminders, date),
+        hasFestival,
+        hasAnniversary,
+        hasReminder,
         count: meals.length,
-        isToday: date === todayText,
+        isToday,
         future: date > todayText
       })
     }

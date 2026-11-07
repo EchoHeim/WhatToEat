@@ -52,7 +52,10 @@ function dishWeight(dish, todayText, options) {
 
   // 没打过分（新菜）按 3 分算，给个中性权重，别让新菜永远抽不到
   const scoreFactor = score > 0 ? Math.max(0.4, 1 + (score - 3) * 0.3) : 1
-  const gapFactor = 1 + Math.min(days / GAP_CAP_DAYS, 1) * 0.5
+  // 推荐菜是临时混进候选池的（用户还没收藏），它没有「多久没吃」这个概念。
+  // 不特殊处理的话 daysSince 会兜底成 GAP_CAP_DAYS，让整批推荐菜集体吃 1.5 倍间隔加成，
+  // 把用户自己攒的菜压下去 —— 点一次「开始随机选」抽到一堆没吃过的推荐菜，体验很怪。
+  const gapFactor = dish.__recommend ? 1 : 1 + Math.min(days / GAP_CAP_DAYS, 1) * 0.5
   const countFactor = 1 / (1 + Math.min(eatCount, COUNT_CAP) / COUNT_CAP)
   const recentDays = Number(opts.recentDays) || 0
   const repeatFactor = recentDays > 0 && days < recentDays ? 0.25 : 1

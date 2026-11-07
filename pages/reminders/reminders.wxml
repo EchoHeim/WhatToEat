@@ -39,7 +39,7 @@
   <view wx:for="{{groups}}" wx:for-item="group" wx:key="key" class="group">
     <view class="group-head"><text class="section-title">{{group.title}}</text><text wx:if="{{group.hint}}" class="group-hint">{{group.hint}}</text><text class="group-count">{{group.items.length}} 条</text></view>
     <view class="card list-card">
-      <view wx:for="{{group.items}}" wx:for-item="item" wx:key="id" class="item {{item.enabled ? '' : 'off'}} {{item.active ? '' : 'muted'}}" data-id="{{item.id}}" bindtap="editReminder" bindlongpress="removeReminder">
+      <view wx:for="{{group.items}}" wx:for-item="item" wx:key="id" class="item {{item.enabled ? '' : 'off'}} {{item.active ? '' : 'muted'}}" data-id="{{item.id}}" aria-role="button" aria-label="{{item.content}}，{{item.repeatText}}，{{item.timeText}}，{{item.advanceText}}，{{item.statusText}}{{item.enabled ? '' : '，已关闭'}}，轻点编辑，长按删除" bindtap="editReminder" bindlongpress="removeReminder">
         <view class="item-main">
           <view class="item-title">{{item.content}}</view>
           <view class="item-tags">
@@ -52,7 +52,7 @@
         <view class="item-side">
           <view class="trigger {{item.today ? 'hot' : ''}}">{{item.statusText}}</view>
           <view class="switch-wrap" catchtap="noop">
-            <switch class="mini-switch" checked="{{item.enabled}}" color="#E85D3F" data-id="{{item.id}}" bindchange="toggleReminder" />
+            <switch class="mini-switch" checked="{{item.enabled}}" color="#E85D3F" data-id="{{item.id}}" aria-label="{{item.content}} 提醒开关" bindchange="toggleReminder" />
           </view>
         </view>
       </view>

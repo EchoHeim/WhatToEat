@@ -13,11 +13,13 @@
 const MEAL_ORDER = ['早餐', '午餐', '晚餐', '夜宵', '小吃']
 
 /** 口味标签只看这几类：'快餐' '聚餐' 这种不是口味 */
-const TASTE_TAGS = ['辣', '清淡', '减脂', '高蛋白', '快手']
+const TASTE_TAGS = ['辣', '清淡', '减脂', '高蛋白', '简单']
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
-function pad(value) { return `${value}`.padStart(2, '0') }
+function pad(value) {
+  return `${value}`.padStart(2, '0')
+}
 
 /** 当前月份 YYYY-MM */
 function currentMonth(date) {
@@ -27,7 +29,9 @@ function currentMonth(date) {
 
 /** 月份偏移：'2026-01' 往前一个月 → '2025-12' */
 function shiftMonth(month, delta) {
-  const parts = String(month || '').split('-').map(Number)
+  const parts = String(month || '')
+    .split('-')
+    .map(Number)
   if (parts.length !== 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) return ''
   let year = parts[0]
   let index = parts[1] - 1 + Number(delta || 0)
@@ -38,7 +42,9 @@ function shiftMonth(month, delta) {
 
 /** 这个月有几天 */
 function daysInMonth(month) {
-  const parts = String(month || '').split('-').map(Number)
+  const parts = String(month || '')
+    .split('-')
+    .map(Number)
   if (parts.length !== 2) return 0
   return new Date(parts[0], parts[1], 0).getDate()
 }
@@ -73,11 +79,19 @@ function buildReport(options) {
   const month = /^\d{4}-\d{2}$/.test(String(opts.month || '')) ? String(opts.month) : currentMonth()
   const records = (Array.isArray(opts.records) ? opts.records : []).filter(item => item && item.date)
   const dishes = Array.isArray(opts.dishes) ? opts.dishes : []
-  const inMonth = records.filter(item => String(item.date).slice(0, 7) === month)
+  // 一次遍历同时分出「本月记录」和「上月条数」：报告页每次 onShow 加同步回调都要重算，
+  // 分两遍 filter 等于把整张记录表扫两遍，记录攒多了会有体感。
+  const prevMonth = shiftMonth(month, -1)
+  const inMonth = []
+  let prevCount = 0
+  records.forEach(item => {
+    const key = String(item.date).slice(0, 7)
+    if (key === month) inMonth.push(item)
+    else if (key === prevMonth) prevCount += 1
+  })
   if (!inMonth.length) return emptyReport(month)
 
   const dishMap = new Map(dishes.map(item => [item.id, item]))
-  const prevCount = records.filter(item => String(item.date).slice(0, 7) === shiftMonth(month, -1)).length
   const monthDays = daysInMonth(month)
   const todayCount = new Set(inMonth.map(item => item.date)).size
 
@@ -88,7 +102,10 @@ function buildReport(options) {
     const entry = byName.get(name) || { name, count: 0, scoreSum: 0, scoreCount: 0, dishId: item.dishId, emoji: '' }
     entry.count += 1
     const score = Number(item.score)
-    if (Number.isFinite(score) && score > 0) { entry.scoreSum += score; entry.scoreCount += 1 }
+    if (Number.isFinite(score) && score > 0) {
+      entry.scoreSum += score
+      entry.scoreCount += 1
+    }
     if (!entry.emoji) {
       const dish = dishMap.get(item.dishId)
       entry.emoji = (dish && dish.emoji) || '🍽'
@@ -120,7 +137,7 @@ function buildReport(options) {
   const tasteCounter = {}
   inMonth.forEach(item => {
     const dish = dishMap.get(item.dishId)
-    const tags = (dish && Array.isArray(dish.tags)) ? dish.tags : []
+    const tags = dish && Array.isArray(dish.tags) ? dish.tags : []
     tags.forEach(tag => {
       if (TASTE_TAGS.includes(tag)) tasteCounter[tag] = (tasteCounter[tag] || 0) + 1
     })
@@ -129,7 +146,9 @@ function buildReport(options) {
     .map(name => ({ name, count: tasteCounter[name] }))
     .sort((a, b) => b.count - a.count)
   const tasteMax = byTaste.length ? byTaste[0].count : 0
-  byTaste.forEach(item => { item.percent = tasteMax ? Math.round((item.count / tasteMax) * 100) : 0 })
+  byTaste.forEach(item => {
+    item.percent = tasteMax ? Math.round((item.count / tasteMax) * 100) : 0
+  })
 
   // ---- 评分走势：一天一根柱子，没记录的天留空 ----
   const dayScores = {}
@@ -159,11 +178,14 @@ function buildReport(options) {
   trend.forEach(item => {
     const score = Number(item.scoreText)
     if (!Number.isFinite(score) || score <= 0) return
-    if (!bestDay || score > Number(bestDay.scoreText)) bestDay = { date: item.date, scoreText: item.scoreText, weekday: item.weekday }
+    if (!bestDay || score > Number(bestDay.scoreText))
+      bestDay = { date: item.date, scoreText: item.scoreText, weekday: item.weekday }
   })
 
   const rated = inMonth.map(item => Number(item.score)).filter(value => Number.isFinite(value) && value > 0)
-  const averageScore = rated.length ? Number((rated.reduce((sum, value) => sum + value, 0) / rated.length).toFixed(1)) : 0
+  const averageScore = rated.length
+    ? Number((rated.reduce((sum, value) => sum + value, 0) / rated.length).toFixed(1))
+    : 0
 
   return {
     month,

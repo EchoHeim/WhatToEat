@@ -8,19 +8,19 @@
     <view wx:if="{{id}}" class="field">
       <view class="label">类型</view>
       <view class="segment">
-        <view wx:for="{{kinds}}" wx:key="value" class="seg {{kind === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="kindChange">{{item.label}}</view>
+        <view wx:for="{{kinds}}" wx:key="value" class="seg {{kind === item.value ? 'active' : ''}}" data-value="{{item.value}}" aria-role="button" aria-label="类型 {{item.label}}{{kind === item.value ? '，已选中' : ''}}" bindtap="kindChange">{{item.label}}</view>
       </view>
     </view>
 
     <view class="field">
       <view class="label">{{kind === 'anniversary' ? '名称' : '提醒内容'}}</view>
-      <input class="text-input" placeholder="{{kind === 'anniversary' ? '例如：结婚纪念日、奶奶生日' : '例如：奶奶生日、交房租、每天吃药'}}" value="{{content}}" bindinput="contentChange" maxlength="40" />
+      <input class="text-input" placeholder="{{kind === 'anniversary' ? '例如：结婚纪念日、奶奶生日' : '例如：奶奶生日、交房租、每天吃药'}}" value="{{content}}" aria-label="{{kind === 'anniversary' ? '纪念日名称' : '提醒内容'}}" bindinput="contentChange" maxlength="40" />
     </view>
 
     <view wx:if="{{kind === 'anniversary' || legacyLunar}}" class="field">
       <view class="label">日历</view>
       <view class="segment">
-        <view wx:for="{{calendars}}" wx:key="value" class="seg {{calendar === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="calendarChange">{{item.label}}</view>
+        <view wx:for="{{calendars}}" wx:key="value" class="seg {{calendar === item.value ? 'active' : ''}}" data-value="{{item.value}}" aria-role="button" aria-label="日历 {{item.label}}{{calendar === item.value ? '，已选中' : ''}}" bindtap="calendarChange">{{item.label}}</view>
       </view>
     </view>
 
@@ -29,8 +29,8 @@
       <picker wx:if="{{!lunarMode}}" mode="date" value="{{solarDate}}" bindchange="solarDateChange"><view class="picker-value"><text>{{solarDate}}</text><text>选择 ›</text></view></picker>
       <block wx:else>
         <view class="two-col">
-          <picker range="{{lunarMonthLabels}}" value="{{lunarMonthIndex}}" bindchange="lunarMonthChange"><view class="small-picker">{{lunarMonthLabels[lunarMonthIndex]}} ›</view></picker>
-          <picker range="{{lunarDayLabels}}" value="{{lunarDayIndex}}" bindchange="lunarDayChange"><view class="small-picker">{{lunarDayLabels[lunarDayIndex]}} ›</view></picker>
+          <picker range="{{lunarMonthLabels}}" value="{{lunarMonthIndex}}" bindchange="lunarMonthChange"><view class="small-picker" aria-role="button" aria-label="农历月份 {{lunarMonthLabels[lunarMonthIndex]}}">{{lunarMonthLabels[lunarMonthIndex]}} ›</view></picker>
+          <picker range="{{lunarDayLabels}}" value="{{lunarDayIndex}}" bindchange="lunarDayChange"><view class="small-picker" aria-role="button" aria-label="农历日期 {{lunarDayLabels[lunarDayIndex]}}">{{lunarDayLabels[lunarDayIndex]}} ›</view></picker>
         </view>
         <view class="resolve">对应公历 {{solarDate}}{{lunarRollHint ? ' · ' + lunarRollHint : ''}}</view>
       </block>
@@ -45,14 +45,14 @@
     <view wx:else class="field">
       <view class="label">循环方式</view>
       <view class="chip-row">
-        <view wx:for="{{repeats}}" wx:key="value" class="chip {{repeat === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="repeatChange">{{item.label}}</view>
+        <view wx:for="{{repeats}}" wx:key="value" class="chip {{repeat === item.value ? 'active' : ''}}" data-value="{{item.value}}" aria-role="button" aria-label="循环方式 {{item.label}}{{repeat === item.value ? '，已选中' : ''}}" bindtap="repeatChange">{{item.label}}</view>
       </view>
       <view wx:if="{{dailyRepeat}}" class="interval-row">
         <text class="interval-label">每</text>
         <view class="stepper">
-          <view class="step-btn" hover-class="step-btn-hover" data-delta="-1" bindtap="intervalStep">−</view>
-          <input class="step-input" type="number" value="{{intervalDays}}" bindinput="intervalInput" bindblur="intervalBlur" />
-          <view class="step-btn" hover-class="step-btn-hover" data-delta="1" bindtap="intervalStep">＋</view>
+          <view class="step-btn" hover-class="step-btn-hover" data-delta="-1" aria-role="button" aria-label="减少一天" bindtap="intervalStep">−</view>
+          <input class="step-input" type="number" value="{{intervalDays}}" aria-label="间隔天数" bindinput="intervalInput" bindblur="intervalBlur" />
+          <view class="step-btn" hover-class="step-btn-hover" data-delta="1" aria-role="button" aria-label="增加一天" bindtap="intervalStep">＋</view>
         </view>
         <text class="interval-label">天提醒一次</text>
       </view>
@@ -62,14 +62,14 @@
     <view wx:if="{{kind === 'anniversary'}}" class="field">
       <view class="switch-row">
         <view class="switch-text"><text class="label no-margin">到期提醒</text><text class="field-hint">关掉就只在日历上标个紫色日子，不推送</text></view>
-        <switch checked="{{notify}}" color="#E85D3F" bindchange="notifyChange" />
+        <switch checked="{{notify}}" color="#E85D3F" aria-label="到期提醒" bindchange="notifyChange" />
       </view>
     </view>
 
     <view wx:if="{{(kind === 'reminder' && !dailyRepeat) || notify}}" class="field">
       <view class="label">提前提醒</view>
       <view class="chip-row">
-        <view wx:for="{{advanceOptions}}" wx:key="value" class="chip {{item.checked ? 'active' : ''}}" data-value="{{item.value}}" bindtap="toggleAdvance">{{item.label}}</view>
+        <view wx:for="{{advanceOptions}}" wx:key="value" class="chip {{item.checked ? 'active' : ''}}" data-value="{{item.value}}" aria-role="button" aria-label="提前 {{item.label}}{{item.checked ? '，已选中' : ''}}" bindtap="toggleAdvance">{{item.label}}</view>
       </view>
       <view wx:if="{{kind === 'anniversary'}}" class="field-hint">三个都能选，同时提醒</view>
     </view>
@@ -81,7 +81,7 @@
 
     <view class="field">
       <view class="label">备注<text class="label-extra">选填</text></view>
-      <input class="text-input" placeholder="填了会显示在推送「提醒内容」最前面，如：带上身份证" value="{{remark}}" bindinput="remarkChange" maxlength="20" />
+      <input class="text-input" placeholder="填了会显示在推送「提醒内容」最前面，如：带上身份证" value="{{remark}}" aria-label="备注，选填" bindinput="remarkChange" maxlength="20" />
     </view>
 
     <view wx:if="{{kind === 'reminder'}}" class="field no-border">

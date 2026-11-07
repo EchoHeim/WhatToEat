@@ -4,6 +4,8 @@
       wx:for="{{list}}"
       wx:key="pagePath"
       class="app-tab {{selected === index ? 'on' : ''}}"
+      aria-role="tab"
+      aria-label="{{item.text}}{{selected === index ? '，当前所在' : ''}}"
       hover-class="app-tab-hover"
       hover-start-time="0"
       data-index="{{index}}"

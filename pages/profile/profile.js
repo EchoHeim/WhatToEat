@@ -1,15 +1,32 @@
 const store = require('../../utils/store')
 const reminderLib = require('../../utils/reminder')
+const subscribe = require('../../utils/subscribe')
 const tabbar = require('../../utils/tabbar')
 const version = require('../../utils/version')
 
+/**
+ * 推送状态转一句人能看懂的话。开着（accept）就返回空串，卡片下面不占位置。
+ * 四种状态的含义见 utils/subscribe.js 的 autoState 注释：
+ *   accept 勾过「总是保持」且选了同意 / reject 被拒过 / off 微信通知总开关关了 / '' 还没勾过
+ */
+function pushTipText(state) {
+  if (state === 'accept') return ''
+  if (state === 'off') return '微信通知总开关关着，提醒不会响'
+  if (state === 'reject') return '你拒过推送授权，到点不会提醒'
+  return '还没勾选「总是保持」，推送额度用完就停'
+}
+
 Page({
   // appVersion 从 utils/version.js 取，跟 `cli upload -v` 传的版本号一起改；反馈页读的是同一份
-  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', storageText: '', appVersion: version.APP_VERSION, tabbar: tabbar.create(3) },
+  data: { recentOptions: [1, 3, 7, 14, 30], meals: store.MEALS, reminderBadge: 0, reminderText: '', pushTip: '', storageText: '', appVersion: version.APP_VERSION, tabbar: tabbar.create(3) },
   onTabTap(e) { tabbar.go(e) },
+  // 见首页同一处注释：不定义它，「转发」和「复制链接」都是灰的
+  onShareAppMessage() { return { title: '今天吃什么 · 帮我决定这一顿', path: '/pages/index/index' } },
   onShow() {
     this.refresh()
     store.syncThen(() => this.refresh())
+    // 订阅状态只能异步问微信，拿到后再刷一次；查询失败会退回上次缓存，不影响页面
+    subscribe.refreshState().then(() => this.refresh())
   },
   refresh() {
     const dishes = store.getDishes(), records = store.getRecords(), settings = store.getSettings()
@@ -37,6 +54,8 @@ Page({
       avatarUrl: settings.avatarFileId || '',
       reminderBadge: todayReminders,
       reminderText,
+      // 没开推送的话，在「提醒事项」卡片下面挂一行提示（开了就是空串，界面上不占位置）
+      pushTip: pushTipText(subscribe.autoState()),
       recentText: `${settings.recentDays} 天`,
       recentIndex: Math.max(0, this.data.recentOptions.indexOf(Number(settings.recentDays))),
       mealIndex: Math.max(0, store.MEALS.indexOf(settings.defaultMeal)),
@@ -229,6 +248,14 @@ Page({
     })
   },
   openReminders() { wx.navigateTo({ url: '/pages/reminders/reminders' }) },
+  /**
+   * 推送没开时点那行提示 → 打开小程序设置页。
+   * 这里只能「引导」：reject / off 两种状态微信不给接口直接改，必须用户自己在设置里拨回来。
+   */
+  openPushSetting() {
+    if (!this.data.pushTip) return
+    wx.openSetting({ withSubscriptions: true })
+  },
   openFeedback() { wx.navigateTo({ url: '/pages/feedback/feedback' }) },
   /** 「提醒」区块的两个新建入口：类型钉在 URL 上，进去直接就是那一种，不用再手动切 */
   addReminder() { wx.navigateTo({ url: `/pages/reminder-form/reminder-form?kind=${reminderLib.KIND_REMINDER}` }) },

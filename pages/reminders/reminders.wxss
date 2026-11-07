@@ -1,69 +1,270 @@
-page { height: 100vh; display: flex; flex-direction: column; }
-.page-scroll { flex: 1; overflow: hidden; }
-.reminder-page { padding-bottom: 60rpx; }
+page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.page-scroll {
+  flex: 1;
+  overflow: hidden;
+}
+.reminder-page {
+  padding-bottom: 60rpx;
+}
 
 /* 页面只有一条入口：诗句居中在最上面，正事（推送状态、提醒列表）往下排。
    view 在 Skyline 下默认是纵向 flex，这里必须显式改成横向，否则 emoji 和诗句会上下两行 */
-.verse { display: flex; flex-direction: row; align-items: center; justify-content: center; margin: 10rpx 0 24rpx; color: #9A968D; font-size: 24rpx; }
+.verse {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin: 10rpx 0 24rpx;
+  color: #9a968d;
+  font-size: 24rpx;
+}
 /* 标记单独一个 text 节点：跟汉字挤在同一个字符串里时，Skyline 会把它渲染成方块 */
-.verse-mark { margin-right: 10rpx; }
+.verse-mark {
+  margin-right: 10rpx;
+}
 /* 「提醒事项」跟着列表走，没提醒时整段不渲染；比分组标题（32rpx）大一档，层级才分得开 */
-.list-title { margin: 34rpx 8rpx 14rpx; font-size: 36rpx; font-weight: 800; }
+.list-title {
+  margin: 34rpx 8rpx 14rpx;
+  font-size: 36rpx;
+  font-weight: 800;
+}
 
 /* 提醒状态 + 推送额度合成一张卡：上半今天几条，下半额度，中间一条分隔线 */
-.status { margin-top: 32rpx; padding: 0 28rpx; }
-.status-today { display: flex; align-items: center; padding: 28rpx 0; }
-.status-icon { margin-right: 20rpx; font-size: 44rpx; }
-.status-today-body { flex: 1; min-width: 0; }
-.status-divider { height: 1rpx; background: #EEE9E0; }
-.status-push { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; }
-.status-push-body { flex: 1; min-width: 0; margin-right: 18rpx; }
-.status-title { font-size: 29rpx; font-weight: 700; }
-.status-push-title { font-size: 27rpx; font-weight: 650; }
-.status-sub { margin-top: 7rpx; color: #9A968D; font-size: 21rpx; line-height: 1.5; }
+.status {
+  margin-top: 32rpx;
+  padding: 0 28rpx;
+}
+.status-today {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 0;
+}
+.status-icon {
+  margin-right: 20rpx;
+  font-size: 44rpx;
+}
+.status-today-body {
+  flex: 1;
+  min-width: 0;
+}
+.status-divider {
+  height: 1rpx;
+  background: #eee9e0;
+}
+.status-push {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 0;
+}
+.status-push-body {
+  flex: 1;
+  min-width: 0;
+  margin-right: 18rpx;
+}
+.status-title {
+  font-size: 29rpx;
+  font-weight: 700;
+}
+.status-push-title {
+  font-size: 27rpx;
+  font-weight: 650;
+}
+.status-sub {
+  margin-top: 7rpx;
+  color: #9a968d;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
 /* 「额度+1」比原来的「开启」宽，字号与内边距收一点，别把左侧文案挤掉。
    宽度必须显式写：小程序 button 自带 width:100%，在 flex 行里会一路撑开，
    把左边的「微信推送」文案压成两行 —— width:auto 收回到内容宽度，max-width 再兜一道。 */
-.push-btn { flex: none; width: auto; max-width: 200rpx; box-sizing: border-box; height: 62rpx; line-height: 62rpx; padding: 0 22rpx; font-size: 24rpx; }
+.push-btn {
+  flex: none;
+  width: auto;
+  max-width: 200rpx;
+  box-sizing: border-box;
+  height: 62rpx;
+  line-height: 62rpx;
+  padding: 0 22rpx;
+  font-size: 24rpx;
+}
 
-.cloud-hint { display: flex; flex-direction: column; margin-top: 32rpx; padding: 24rpx 28rpx; background: #FCEBEB; box-shadow: none; }
-.cloud-hint-title { color: #A32D2D; font-size: 27rpx; font-weight: 650; }
-.cloud-hint-body { margin-top: 10rpx; color: #791F1F; font-size: 23rpx; line-height: 1.6; }
-.cloud-hint-foot { margin-top: 10rpx; color: #A32D2D; font-size: 21rpx; line-height: 1.5; }
+.cloud-hint {
+  display: flex;
+  flex-direction: column;
+  margin-top: 32rpx;
+  padding: 24rpx 28rpx;
+  background: #fcebeb;
+  box-shadow: none;
+}
+.cloud-hint-title {
+  color: #a32d2d;
+  font-size: 27rpx;
+  font-weight: 650;
+}
+.cloud-hint-body {
+  margin-top: 10rpx;
+  color: #791f1f;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+.cloud-hint-foot {
+  margin-top: 10rpx;
+  color: #a32d2d;
+  font-size: 21rpx;
+  line-height: 1.5;
+}
 
-.push-guide { margin-top: 20rpx; padding: 26rpx 28rpx; background: #FBF8F1; box-shadow: none; }
-.guide-title { color: #6C6961; font-size: 25rpx; font-weight: 650; }
-.guide-item { display: flex; align-items: flex-start; margin-top: 14rpx; }
-.guide-index { flex: none; width: 30rpx; height: 30rpx; margin: 2rpx 12rpx 0 0; line-height: 30rpx; text-align: center; border-radius: 50%; background: #EDE9E0; color: #8B8982; font-size: 19rpx; }
-.guide-text { flex: 1; color: #8B8982; font-size: 22rpx; line-height: 1.55; }
+.push-guide {
+  margin-top: 20rpx;
+  padding: 26rpx 28rpx;
+  background: #fbf8f1;
+  box-shadow: none;
+}
+.guide-title {
+  color: #6c6961;
+  font-size: 25rpx;
+  font-weight: 650;
+}
+.guide-item {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 14rpx;
+}
+.guide-index {
+  flex: none;
+  width: 30rpx;
+  height: 30rpx;
+  margin: 2rpx 12rpx 0 0;
+  line-height: 30rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #ede9e0;
+  color: #8b8982;
+  font-size: 19rpx;
+}
+.guide-text {
+  flex: 1;
+  color: #8b8982;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
 
-.group { margin-top: 32rpx; }
-.group-head { display: flex; align-items: baseline; margin: 0 8rpx 14rpx; }
-.group-hint { margin-left: 10rpx; color: #8B5CF6; font-size: 21rpx; }
-.group-count { margin-left: 12rpx; color: #9B978E; font-size: 22rpx; }
+.group {
+  margin-top: 32rpx;
+}
+.group-head {
+  display: flex;
+  align-items: baseline;
+  margin: 0 8rpx 14rpx;
+}
+.group-hint {
+  margin-left: 10rpx;
+  color: #8b5cf6;
+  font-size: 21rpx;
+}
+.group-count {
+  margin-left: 12rpx;
+  color: #9b978e;
+  font-size: 22rpx;
+}
 
-.list-card { padding: 0 26rpx; }
-.item { display: flex; align-items: flex-start; padding: 26rpx 0; border-bottom: 1rpx solid #EEE9E0; }
-.item:last-child { border: 0; }
-.item.off { opacity: .5; }
+.list-card {
+  padding: 0 26rpx;
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #eee9e0;
+}
+.item:last-child {
+  border: 0;
+}
+.item.off {
+  opacity: 0.5;
+}
 /* 已关闭 / 已结束 / 已过期：整条灰掉，不再抢注意力（开关仍可点，能重新打开） */
-.item.muted .item-title { color: #8B8982; font-weight: 600; }
-.item.muted .tag { background: #F4F1EA; color: #ACA89F; }
-.item.muted .item-sub { color: #B3AFA6; }
-.item.muted .trigger { color: #B0ACA3; }
-.item.muted .mini-switch { opacity: .65; }
-.item-main { flex: 1; min-width: 0; }
-.item-title { font-size: 30rpx; font-weight: 700; word-break: break-all; }
-.item-tags { display: flex; flex-wrap: wrap; margin-top: 12rpx; }
-.tag { margin: 0 10rpx 8rpx 0; padding: 5rpx 14rpx; background: #F2EEE5; color: #6C6961; border-radius: 999rpx; font-size: 20rpx; }
-.item-sub { margin-top: 4rpx; color: #9A968D; font-size: 21rpx; }
+.item.muted .item-title {
+  color: #8b8982;
+  font-weight: 600;
+}
+.item.muted .tag {
+  background: #f4f1ea;
+  color: #aca89f;
+}
+.item.muted .item-sub {
+  color: #b3afa6;
+}
+.item.muted .trigger {
+  color: #b0aca3;
+}
+.item.muted .mini-switch {
+  opacity: 0.65;
+}
+.item-main {
+  flex: 1;
+  min-width: 0;
+}
+.item-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  word-break: break-all;
+}
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+.tag {
+  margin: 0 10rpx 8rpx 0;
+  padding: 5rpx 14rpx;
+  background: #f2eee5;
+  color: #6c6961;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+}
+.item-sub {
+  margin-top: 4rpx;
+  color: #9a968d;
+  font-size: 21rpx;
+}
 
-.item-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; margin-left: 20rpx; }
-.trigger { font-size: 23rpx; font-weight: 700; color: #6C6961; }
-.trigger.hot { color: #E85D3F; }
-.switch-wrap { margin-top: 14rpx; }
-.mini-switch { transform: scale(.72); transform-origin: right center; }
+.item-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 20rpx;
+}
+.trigger {
+  font-size: 23rpx;
+  font-weight: 700;
+  color: #6c6961;
+}
+.trigger.hot {
+  color: #e85d3f;
+}
+.switch-wrap {
+  margin-top: 14rpx;
+}
+.mini-switch {
+  transform: scale(0.72);
+  transform-origin: right center;
+}
 
-.tip-line { margin-top: 26rpx; text-align: center; color: #ACA89F; font-size: 20rpx; }
+.tip-line {
+  margin-top: 26rpx;
+  text-align: center;
+  color: #aca89f;
+  font-size: 20rpx;
+}
 /* 空态卡和上面的卡片走同一个间距（别处都是 20rpx，这里原来是 32） */
-.reminder-page .empty { margin-top: 20rpx; }
+.reminder-page .empty {
+  margin-top: 20rpx;
+}

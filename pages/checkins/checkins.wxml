@@ -11,7 +11,7 @@
       <view class="today-title">{{checkedToday ? '今天已签到 · ' + todayMood.label : '今天还没签到'}}</view>
       <view class="today-diet">{{checkedToday ? (todayRecord.note || '今天还没写随笔') : '花十秒选个心情，写两句'}}</view>
     </view>
-    <view class="today-action {{checkedToday ? '' : 'active'}}" bindtap="openToday">{{checkedToday ? '修改' : '签到'}}</view>
+    <view class="today-action {{checkedToday ? '' : 'active'}}" aria-role="button" aria-label="{{checkedToday ? '修改今天的签到' : '今天签到'}}" bindtap="openToday">{{checkedToday ? '修改' : '签到'}}</view>
   </view>
 
   <view class="stats card">
@@ -42,7 +42,7 @@
 
   <view class="section-label">签到记录</view>
   <view wx:if="{{list.length}}" class="card list-card">
-    <view wx:for="{{list}}" wx:key="id" class="item" data-id="{{item.id}}" data-date="{{item.date}}" bindtap="openCheckin" bindlongpress="removeCheckin">
+    <view wx:for="{{list}}" wx:key="id" class="item" data-id="{{item.id}}" data-date="{{item.date}}" aria-role="button" aria-label="{{item.dateLabel}} {{item.weekday}}，{{item.moodLabel}}{{item.note ? '，' + item.note : ''}}，轻点编辑，长按删除" bindtap="openCheckin" bindlongpress="removeCheckin">
       <view class="item-mood"><image class="item-mood-img" mode="aspectFit" src="{{item.icon}}" /></view>
       <view class="item-main">
         <view class="item-head">

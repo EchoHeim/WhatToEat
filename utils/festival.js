@@ -201,7 +201,7 @@ function weekFestivals(dateText, limit) {
     if (offset < 0) continue
     festivalsOf(date).forEach((item) => out.push(decorate(item, date, offset, false)))
   }
-  out.sort((a, b) => a.offset - b.offset || a.name.localeCompare(b.name))
+  out.sort((a, b) => a.offset - b.offset || a.name.localeCompare(b.name, 'zh'))
   return out.slice(0, limit || 3)
 }
 
@@ -266,7 +266,7 @@ function weekAnniversaries(reminders, dateText) {
       out.push(decorate(item, date, offset, false)),
     )
   }
-  out.sort((a, b) => a.offset - b.offset || a.name.localeCompare(b.name))
+  out.sort((a, b) => a.offset - b.offset || a.name.localeCompare(b.name, 'zh'))
   return out
 }
 
@@ -297,7 +297,7 @@ function daysToShow(reminders, todayText, options) {
       )
     return list.sort((a, b) => {
       const rank = (KIND_RANK[a.kind] || 0) - (KIND_RANK[b.kind] || 0)
-      return rank || a.name.localeCompare(b.name)
+      return rank || a.name.localeCompare(b.name, 'zh')
     })
   }
   return weekFestivals(todayText, limit)
@@ -306,7 +306,7 @@ function daysToShow(reminders, todayText, options) {
       (a, b) =>
         a.offset - b.offset ||
         (a.kind === b.kind
-          ? a.name.localeCompare(b.name)
+          ? a.name.localeCompare(b.name, 'zh')
           : a.kind === 'anniv'
             ? 1
             : -1),

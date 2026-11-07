@@ -10,7 +10,7 @@
     <view class="field">
       <view class="label">类型</view>
       <view class="segment">
-        <view wx:for="{{kinds}}" wx:key="value" class="seg {{type === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="typeChange">{{item.label}}</view>
+        <view wx:for="{{kinds}}" wx:key="value" class="seg {{type === item.value ? 'active' : ''}}" data-value="{{item.value}}" aria-role="button" aria-label="类型 {{item.label}}{{type === item.value ? '，已选中' : ''}}" bindtap="typeChange">{{item.label}}</view>
       </view>
     </view>
 
@@ -24,10 +24,10 @@
       <view class="label">截图<text class="label-extra">选填 · 最多 3 张</text></view>
       <view class="shot-row">
         <view wx:for="{{images}}" wx:key="key" class="shot">
-          <image class="shot-img" src="{{item.path}}" mode="aspectFill" data-index="{{index}}" bindtap="previewShot"></image>
-          <view class="shot-del" data-index="{{index}}" catchtap="removeShot">×</view>
+          <image class="shot-img" src="{{item.path}}" mode="aspectFill" data-index="{{index}}" aria-role="button" aria-label="查看第 {{index + 1}} 张截图" bindtap="previewShot"></image>
+          <view class="shot-del" data-index="{{index}}" aria-role="button" aria-label="删除第 {{index + 1}} 张截图" catchtap="removeShot">×</view>
         </view>
-        <view wx:if="{{images.length < maxShots}}" class="shot shot-add" hover-class="shot-add-hover" bindtap="addShot">
+        <view wx:if="{{images.length < maxShots}}" class="shot shot-add" hover-class="shot-add-hover" aria-role="button" aria-label="添加截图，最多 {{maxShots}} 张" bindtap="addShot">
           <text class="shot-plus">＋</text>
           <text class="shot-tip">加截图</text>
         </view>
@@ -36,7 +36,7 @@
 
     <view class="field no-border">
       <view class="label">邮箱<text class="label-extra">选填 · 只用来回信</text></view>
-      <input class="text-input" placeholder="留一个的话，需要时按这个回复你" value="{{email}}" bindinput="emailChange" maxlength="60" />
+      <input class="text-input" placeholder="留一个的话，需要时按这个回复你" value="{{email}}" aria-label="邮箱，选填，只用来回信" bindinput="emailChange" maxlength="60" />
     </view>
   </view>
 

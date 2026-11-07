@@ -1,3 +1,250 @@
-@import "../../styles/tabbar.wxss";
-page{height:100vh;display:flex;flex-direction:column}.page-scroll{flex:1;overflow:hidden}.title-row{display:flex;justify-content:space-between;align-items:center;margin:12rpx 0 30rpx}.title-main{flex:1;min-width:0;padding-right:20rpx}.page-title{font-size:44rpx;font-weight:800}.count{margin-top:8rpx;font-size:24rpx;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.add-btn{flex:none;display:flex;align-items:center;justify-content:center;width:152rpx;height:66rpx;padding:0;box-sizing:border-box;background:#E85D3F;color:#fff;border-radius:999rpx;font-size:25rpx;font-weight:600;white-space:nowrap}.add-btn-hover{opacity:.82}.search{display:flex;align-items:center;height:84rpx;padding:0 26rpx;background:#FFFDF8;border-radius:22rpx}.search-icon{margin-right:14rpx;font-size:38rpx;color:#77736B}.search input{flex:1;font-size:27rpx}.category-row{display:flex;flex-wrap:wrap;gap:12rpx;margin:24rpx 0 4rpx}.category{flex:none;padding:11rpx 22rpx;border-radius:999rpx;background:#EDE9E0;color:#747168;font-size:24rpx}.category.active{background:#292824;color:#fff}.list-head{display:flex;justify-content:space-between;align-items:center;margin:28rpx 2rpx 20rpx}.sort{display:flex;align-items:center;color:#77736B;font-size:24rpx}.sort-caret{width:10rpx;height:10rpx;margin:-5rpx 0 0 10rpx;border-right:3rpx solid #A8A49B;border-bottom:3rpx solid #A8A49B;transform:rotate(45deg)}.dish-list{display:flex;flex-direction:column;gap:18rpx}.dish-card{display:flex;align-items:center;padding:24rpx}.dish-emoji{display:flex;align-items:center;justify-content:center;width:104rpx;height:104rpx;margin-right:22rpx;border-radius:24rpx;background:#F6EEE4;font-size:58rpx}.dish-main{flex:1;min-width:0}.dish-name{font-size:31rpx;font-weight:700}.dish-meta{margin-top:8rpx;color:#88847C;font-size:23rpx}.tag-line{height:34rpx;line-height:34rpx;margin-top:8rpx;overflow:hidden;white-space:nowrap;color:#B17765;font-size:21rpx}.dish-side{display:flex;align-items:flex-end;flex-direction:column;gap:8rpx;margin-left:12rpx}.score{color:#E0A023;font-size:24rpx;font-weight:700}.times{color:#A09C93;font-size:20rpx}.arrow{color:#BCB8AF;font-size:40rpx;line-height:28rpx}.empty text{font-size:23rpx}
-.page-pad{padding-bottom:210rpx}
+@import '../../styles/tabbar.wxss';
+page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.page-scroll {
+  flex: 1;
+  overflow: hidden;
+}
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 12rpx 0 30rpx;
+}
+.title-main {
+  flex: 1;
+  min-width: 0;
+  padding-right: 20rpx;
+}
+.page-title {
+  font-size: 44rpx;
+  font-weight: 800;
+}
+.count {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.add-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 152rpx;
+  height: 66rpx;
+  padding: 0;
+  box-sizing: border-box;
+  background: #e85d3f;
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 25rpx;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.add-btn-hover {
+  opacity: 0.82;
+}
+.search {
+  display: flex;
+  align-items: center;
+  height: 84rpx;
+  padding: 0 26rpx;
+  background: #fffdf8;
+  border-radius: 22rpx;
+}
+.search-icon {
+  margin-right: 14rpx;
+  font-size: 38rpx;
+  color: #77736b;
+}
+.search input {
+  flex: 1;
+  font-size: 27rpx;
+}
+.category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin: 24rpx 0 4rpx;
+}
+.category {
+  flex: none;
+  padding: 11rpx 22rpx;
+  border-radius: 999rpx;
+  background: #ede9e0;
+  color: #747168;
+  font-size: 24rpx;
+}
+.category.active {
+  background: #292824;
+  color: #fff;
+}
+.list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 28rpx 2rpx 20rpx;
+}
+.sort {
+  display: flex;
+  align-items: center;
+  color: #77736b;
+  font-size: 24rpx;
+}
+.sort-caret {
+  width: 10rpx;
+  height: 10rpx;
+  margin: -5rpx 0 0 10rpx;
+  border-right: 3rpx solid #a8a49b;
+  border-bottom: 3rpx solid #a8a49b;
+  transform: rotate(45deg);
+}
+.dish-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+.dish-card {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+}
+.dish-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 104rpx;
+  height: 104rpx;
+  margin-right: 22rpx;
+  border-radius: 24rpx;
+  background: #f6eee4;
+  font-size: 58rpx;
+}
+.dish-main {
+  flex: 1;
+  min-width: 0;
+}
+.dish-name {
+  font-size: 31rpx;
+  font-weight: 700;
+}
+.dish-meta {
+  margin-top: 8rpx;
+  color: #88847c;
+  font-size: 23rpx;
+}
+.tag-line {
+  height: 34rpx;
+  line-height: 34rpx;
+  margin-top: 8rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #b17765;
+  font-size: 21rpx;
+}
+.dish-side {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-left: 12rpx;
+}
+.score {
+  color: #e0a023;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+.times {
+  color: #a09c93;
+  font-size: 20rpx;
+}
+.arrow {
+  color: #bcb8af;
+  font-size: 40rpx;
+  line-height: 28rpx;
+}
+.empty text {
+  font-size: 23rpx;
+}
+.page-pad {
+  padding-bottom: 210rpx;
+}
+/* 「我的 / 推荐」分段控件：整块浅底槽，选中项浮上来一块白 */
+.seg {
+  display: flex;
+  margin: -6rpx 0 22rpx;
+  padding: 6rpx;
+  background: #f0ebe1;
+  border-radius: 999rpx;
+}
+.seg-item {
+  flex: 1;
+  height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  color: #6c6961;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+.seg-item.on {
+  background: #fffdf8;
+  color: #292824;
+  box-shadow: 0 4rpx 12rpx rgba(67, 49, 34, 0.1);
+}
+/* 人群筛选：跟分类 chip 一个观感，但选中态用深色，跟上面那排分类区分开 */
+/* 人群筛选：两排，第一排「全部 + 年龄段」，第二排特殊需求。不写分组标题，靠换行区分。
+   chip 比分类那排略紧（padding 20、字号 24、间距 10）：第一排要塞下 6 个，
+   按原来的 26/25/14 算下来 746rpx，内容区只有 686rpx，会把「老年人」挤到第三行。 */
+.crowd-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.crowd-chip {
+  margin: 0 10rpx 12rpx 0;
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  background: #f2eee5;
+  color: #6c6961;
+  font-size: 24rpx;
+  white-space: nowrap;
+}
+.crowd-chip.active {
+  background: #292824;
+  color: #fff;
+  font-weight: 600;
+}
+.crowd-note {
+  margin: 4rpx 0 18rpx;
+  color: #a09c93;
+  font-size: 21rpx;
+}
+/* 推荐卡：右边是收藏按钮，左边多一行「为什么适合这个人」 */
+.recipe-why {
+  margin-top: 8rpx;
+  color: #8b8982;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+.collect {
+  flex: none;
+  align-self: center;
+  margin-left: 16rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background: #e85d3f;
+  color: #fff;
+  font-size: 23rpx;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.collect.owned {
+  background: #f0ebe1;
+  color: #a8a49b;
+  font-weight: 500;
+}

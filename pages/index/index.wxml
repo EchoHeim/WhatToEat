@@ -5,7 +5,7 @@
     <view class="hello-row">
       <view><view class="eyebrow">FOOD DECISION</view><view class="headline">这一顿，交给运气吧</view></view>
     </view>
-    <view class="checkin-bar" bindtap="openCheckin">
+    <view class="checkin-bar" aria-role="button" aria-label="{{checkin.title}}，{{checkin.sub}}，{{checkin.checked ? '看记录' : '去签到'}}" bindtap="openCheckin">
       <image wx:if="{{checkin.icon}}" class="checkin-bar-icon" mode="aspectFit" src="{{checkin.icon}}" /><text wx:else class="checkin-bar-emoji">{{checkin.emoji}}</text>
       <view class="checkin-bar-body">
         <text class="checkin-bar-title">{{checkin.title}}</text>
@@ -14,18 +14,19 @@
       <text class="checkin-bar-go">{{checkin.checked ? '看记录' : '去签到'}} ›</text>
     </view>
     <view wx:if="{{filterOpen}}" class="filter-card card">
-      <view class="filter-head"><text class="section-title">限定范围</text><view class="filter-actions"><text class="clear" bindtap="clearFilters">清空</text><text class="collapse" bindtap="toggleFilters">收起</text></view></view>
-      <view class="filter-label">类型</view><view class="chip-row"><view wx:for="{{categoryChoices}}" wx:key="value" class="choice {{item.active ? 'active' : ''}}" data-type="category" data-value="{{item.value}}" bindtap="chooseFilter">{{item.value}}</view></view>
-      <view class="filter-label">方式</view><view class="chip-row"><view wx:for="{{eatTypeChoices}}" wx:key="value" class="choice {{item.active ? 'active' : ''}}" data-type="eatType" data-value="{{item.value}}" bindtap="chooseFilter">{{item.value}}</view></view>
-      <view class="filter-label">预算</view><view class="chip-row"><view wx:for="{{priceChoices}}" wx:key="value" class="choice {{item.active ? 'active' : ''}}" data-type="price" data-value="{{item.value}}" bindtap="chooseFilter">{{item.value}}</view></view>
+      <view class="filter-head"><text class="section-title">限定范围</text><view class="filter-actions"><text class="clear" aria-role="button" aria-label="清空筛选条件" bindtap="clearFilters">清空</text><text class="collapse" aria-role="button" aria-label="收起筛选" bindtap="toggleFilters">收起</text></view></view>
+      <view class="filter-label">从哪里抽</view><view class="chip-row"><view wx:for="{{sourceOptions}}" wx:key="key" class="choice {{source === item.key ? 'active' : ''}}" data-key="{{item.key}}" aria-role="button" aria-label="{{item.label}}{{source === item.key ? '，已选中' : ''}}" bindtap="chooseSource">{{item.label}}</view></view>
+      <view class="filter-label">类型</view><view class="chip-row"><view wx:for="{{categoryChoices}}" wx:key="value" class="choice {{item.active ? 'active' : ''}}" data-type="category" data-value="{{item.value}}" aria-role="button" aria-label="类型 {{item.value}}{{item.active ? '，已选中' : ''}}" bindtap="chooseFilter">{{item.value}}</view></view>
+      <view class="filter-label">方式</view><view class="chip-row"><view wx:for="{{eatTypeChoices}}" wx:key="value" class="choice {{item.active ? 'active' : ''}}" data-type="eatType" data-value="{{item.value}}" aria-role="button" aria-label="方式 {{item.value}}{{item.active ? '，已选中' : ''}}" bindtap="chooseFilter">{{item.value}}</view></view>
+      <view class="filter-label">预算</view><view class="chip-row"><view wx:for="{{priceChoices}}" wx:key="value" class="choice {{item.active ? 'active' : ''}}" data-type="price" data-value="{{item.value}}" aria-role="button" aria-label="预算 {{item.value}}{{item.active ? '，已选中' : ''}}" bindtap="chooseFilter">{{item.value}}</view></view>
     </view>
     <view class="result-wrap">
       <!-- 餐次直接摆在菜品卡顶部，随手就能换；其余维度仍然收在「筛选」里 -->
       <view class="card-tools">
         <view class="meal-chips">
-          <view wx:for="{{mealChoices}}" wx:key="value" class="meal-chip {{item.active ? 'active' : ''}}" data-type="meal" data-value="{{item.value}}" bindtap="chooseFilter">{{item.value}}</view>
+          <view wx:for="{{mealChoices}}" wx:key="value" class="meal-chip {{item.active ? 'active' : ''}}" data-type="meal" data-value="{{item.value}}" aria-role="button" aria-label="{{item.value}}{{item.active ? '，当前餐次' : ''}}" bindtap="chooseFilter">{{item.value}}</view>
         </view>
-        <view class="filter-entry" bindtap="toggleFilters"><text>筛选</text><text wx:if="{{filterCount}}" class="filter-badge">{{filterCount}}</text></view>
+        <view class="filter-entry" aria-role="button" aria-label="{{filterCount ? '筛选，已选 ' + filterCount + ' 项' : '筛选'}}" bindtap="toggleFilters"><text>筛选</text><text wx:if="{{filterCount}}" class="filter-badge">{{filterCount}}</text></view>
       </view>
       <view wx:if="{{dish}}" class="result-card card {{rolling ? 'rolling' : ''}} {{burst ? 'bursting' : ''}}">
         <block wx:if="{{burst}}">
@@ -42,16 +43,17 @@
           <view class="meta">{{dish.category}} · {{dish.eatTypes[0] || '随心吃'}}</view>
           <view class="tags"><text wx:for="{{dish.tags}}" wx:key="*this" class="pill">{{item}}</text></view>
           <view class="facts"><view class="fact"><text class="fact-value accent">★ {{dish.scoreText}}</text><text class="fact-label">我的评分</text></view><view class="divider"></view><view class="fact"><text class="fact-value">{{dish.eatCount}} 次</text><text class="fact-label">累计吃过</text></view><view class="divider"></view><view class="fact"><text class="fact-value small">{{dish.lastEatText}}</text><text class="fact-label">最近一次</text></view></view>
-          <button class="primary-btn main-action" bindtap="confirmDish">就吃这个</button><view class="secondary-actions"><text bindtap="viewDetail">查看详情 ›</text></view>
+          <view wx:if="{{dish.recommend}}" class="recommend-tip">来自推荐菜谱 · 点下面这个会顺手收进你的菜谱</view>
+          <button class="primary-btn main-action" bindtap="confirmDish">{{dish.recommend ? '收藏并记录这一餐' : '就吃这个'}}</button><view wx:if="{{!dish.recommend}}" class="secondary-actions"><text aria-role="button" aria-label="查看菜品详情" bindtap="viewDetail">查看详情 ›</text></view>
         </block>
       </view>
       <view wx:else class="no-result card"><view class="food-emoji">🥢</view><view class="food-name">没有符合条件的菜</view><view class="muted tip">试试减少筛选条件，或去菜谱添加新菜品</view><button class="ghost-btn" bindtap="clearFilters">清空条件</button></view>
     </view>
-    <button class="dice-btn {{rolling ? 'disabled' : ''}}" bindtap="handlePick"><view class="dice-inner"><text class="dice">{{rolling ? '⏳' : '🎲'}}</text><text class="dice-label">{{rolling ? '正在选择…' : '开始随机选'}}</text><text wx:if="{{!rolling}}" class="dice-count">{{candidateCount}}</text></view></button><view class="rule-tip">{{settings.allowRepeat ? '允许重复：最近吃过的也会出现，只是概率更低' : '已自动避开最近 ' + settings.recentDays + ' 天吃过的菜'}}</view>
+    <button class="dice-btn {{rolling ? 'disabled' : ''}}" aria-label="{{rolling ? '正在选择' : '开始随机选，' + candidateCount + ' 道菜可选'}}" bindtap="handlePick"><view class="dice-inner"><text class="dice">{{rolling ? '⏳' : '🎲'}}</text><text class="dice-label">{{rolling ? '正在选择…' : '开始随机选'}}</text><text wx:if="{{!rolling}}" class="dice-count">{{candidateCount}}</text></view></button><view class="rule-tip">{{settings.allowRepeat ? '允许重复：最近吃过的也会出现，只是概率更低' : '已自动避开最近 ' + settings.recentDays + ' 天吃过的菜'}}</view>
     <view wx:if="{{recentDishes.length}}" class="recent-block">
       <view class="recent-head"><text class="section-title">最近吃过</text><text class="recent-hint">点一下直接记这一餐</text></view>
       <view class="recent-grid">
-        <view wx:for="{{recentDishes}}" wx:key="id" class="recent-chip" data-id="{{item.id}}" bindtap="quickLog">
+        <view wx:for="{{recentDishes}}" wx:key="id" class="recent-chip" data-id="{{item.id}}" aria-role="button" aria-label="{{item.name}}，{{item.mealText}} {{item.agoText}}，点一下记为这一餐" bindtap="quickLog">
           <text class="recent-emoji">{{item.emoji}}</text>
           <view class="recent-body"><text class="recent-name">{{item.name}}</text><text class="recent-ago">{{item.mealText}} · {{item.agoText}}</text></view>
         </view>

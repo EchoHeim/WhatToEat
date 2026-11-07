@@ -12,7 +12,7 @@
     <view class="field">
       <view class="label">今天的心情</view>
       <view class="mood-grid">
-        <view wx:for="{{moods}}" wx:key="key" class="mood {{moodKey === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="chooseMood">
+        <view wx:for="{{moods}}" wx:key="key" class="mood {{moodKey === item.key ? 'active' : ''}}" data-key="{{item.key}}" aria-role="button" aria-label="{{item.label}}{{moodKey === item.key ? '，已选中' : ''}}" bindtap="chooseMood">
           <image class="mood-icon" mode="aspectFit" src="{{item.icon}}" />
           <text class="mood-label">{{item.label}}</text>
         </view>

@@ -1,12 +1,12 @@
 <navigation-bar title="饮食报告" back="{{true}}" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad">
   <view class="month-head">
-    <text class="month-arrow" bindtap="prevMonth">‹</text>
+    <text class="month-arrow" aria-role="button" aria-label="上个月" bindtap="prevMonth">‹</text>
     <view class="month-center">
       <text class="month-title">{{report.monthLabel}}</text>
-      <text wx:if="{{showBackToMonth}}" class="month-back" bindtap="backToMonth">今</text>
+      <text wx:if="{{showBackToMonth}}" class="month-back" aria-role="button" aria-label="回到本月" bindtap="backToMonth">今</text>
     </view>
-    <text class="month-arrow {{canNext ? '' : 'disabled'}}" bindtap="nextMonth">›</text>
+    <text class="month-arrow {{canNext ? '' : 'disabled'}}" aria-role="button" aria-label="{{canNext ? '下个月' : '下个月，已经是最新的月份'}}" bindtap="nextMonth">›</text>
   </view>
 
   <block wx:if="{{report.hasData}}">
@@ -54,7 +54,7 @@
         <view class="dist-track"><view class="dist-fill taste" style="width: {{item.percent}}%"></view></view>
         <text class="dist-value">{{item.count}}</text>
       </view>
-      <view class="block-note">按菜品标签统计，只有打了「辣 / 清淡 / 减脂 / 高蛋白 / 快手」的菜才算</view>
+      <view class="block-note">按菜品标签统计，只有打了「辣 / 清淡 / 减脂 / 高蛋白 / 简单」的菜才算</view>
     </view>
   </block>
 

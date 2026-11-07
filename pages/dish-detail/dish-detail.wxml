@@ -7,11 +7,11 @@
   <button class="primary-btn eat-btn" bindtap="eat">今天吃这个</button>
 </view></scroll-view>
 
-<view wx:if="{{sheetOpen}}" class="action-mask" bindtap="closeSheet" catchtouchmove="noop"></view>
+<view wx:if="{{sheetOpen}}" class="action-mask" aria-role="button" aria-label="关闭菜单" bindtap="closeSheet" catchtouchmove="noop"></view>
 <view wx:if="{{sheetOpen}}" class="action-sheet">
   <view class="action-group">
-    <view class="action-item" hover-class="action-item-hover" hover-stay-time="80" bindtap="onEditTap">编辑菜品</view>
-    <view class="action-item danger" hover-class="action-item-hover" hover-stay-time="80" bindtap="onDeleteTap">删除菜品</view>
+    <view class="action-item" hover-class="action-item-hover" hover-stay-time="80" aria-role="button" aria-label="编辑菜品" bindtap="onEditTap">编辑菜品</view>
+    <view class="action-item danger" hover-class="action-item-hover" hover-stay-time="80" aria-role="button" aria-label="删除菜品" bindtap="onDeleteTap">删除菜品</view>
   </view>
-  <view class="action-cancel" hover-class="action-cancel-hover" hover-stay-time="80" bindtap="closeSheet">取消</view>
+  <view class="action-cancel" hover-class="action-cancel-hover" hover-stay-time="80" aria-role="button" aria-label="取消" bindtap="closeSheet">取消</view>
 </view>

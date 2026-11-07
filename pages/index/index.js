@@ -3,6 +3,7 @@ const checkinLib = require('../../utils/checkin')
 const pick = require('../../utils/pick')
 const subscribe = require('../../utils/subscribe')
 const tabbar = require('../../utils/tabbar')
+const recipes = require('../../utils/recipes')
 
 /**
  * 筛选项总数：四个维度都是数组，空数组不算数。
@@ -10,6 +11,26 @@ const tabbar = require('../../utils/tabbar')
  */
 function countFilters(filters) {
   return Object.keys(filters || {}).reduce((sum, key) => sum + (filters[key] || []).length, 0)
+}
+
+/**
+ * 四维筛选：餐次 / 分类 / 用餐方式 / 预算。某一维是空数组就表示那一维不限。
+ * 抽成函数是因为推荐菜也要过同一套条件 —— 以前这段逻辑只作用在自己的菜谱上。
+ * 「小吃」那条例外见下面 getCandidates 的注释。
+ */
+function matchFilters(dish, meals, categoryList, eatTypeList, priceList) {
+  if (!dish) return false
+  if (
+    meals.length &&
+    !meals.some(
+      name => (dish.mealTypes || []).includes(name) || (name === '小吃' && store.dishCategories(dish).includes('小吃'))
+    )
+  )
+    return false
+  if (categoryList.length && !categoryList.some(name => store.dishCategories(dish).includes(name))) return false
+  if (eatTypeList.length && !eatTypeList.some(name => (dish.eatTypes || []).includes(name))) return false
+  if (priceList.length && !priceList.includes(dish.price)) return false
+  return true
 }
 
 /** 四组筛选项的高亮标记，wxml 直接读 item.active，省得模板里做数组查找 */
@@ -26,7 +47,10 @@ function filterChoices(filters) {
 function daysAgo(dateText) {
   if (!dateText) return '还没吃过'
   const day = 24 * 60 * 60 * 1000
-  const diff = Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(`${dateText}T00:00:00`).getTime()) / day))
+  const diff = Math.max(
+    0,
+    Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(`${dateText}T00:00:00`).getTime()) / day)
+  )
   if (diff === 0) return '今天吃过'
   if (diff === 1) return '昨天吃过'
   return `${diff} 天前吃过`
@@ -69,21 +93,45 @@ function confettiPieces(count) {
 
 Page({
   data: {
-    dish: null, filterOpen: false, rolling: false,
-    burst: false, confetti: [],
+    dish: null,
+    filterOpen: false,
+    rolling: false,
+    burst: false,
+    confetti: [],
     // 最近吃过的那几道：首页的「一键再记一次」入口，把记一餐从 5 步压到 2 步
     recentDishes: [],
     // 四个维度都是数组，同一维里可以选多项（「中餐 + 日料」都算）
     filters: { meal: [], category: [], eatType: [], price: [] },
     // 选项带 active 标记交给 wxml 直接读，跟菜品表单同一套写法
-    mealChoices: [], categoryChoices: [], eatTypeChoices: [], priceChoices: [],
+    mealChoices: [],
+    categoryChoices: [],
+    eatTypeChoices: [],
+    priceChoices: [],
+    // 候选范围：mine 只在自己的菜谱里抽，recommend 只在推荐库里抽，all 混在一起
+    source: 'mine',
+    sourceOptions: [
+      { key: 'mine', label: '我的菜谱' },
+      { key: 'recommend', label: '推荐菜谱' },
+      { key: 'all', label: '两个都算' }
+    ],
     filterCount: 0,
     // 「开始随机选」按钮上的数字：按当前筛选真正能抽到的菜有几道
     candidateCount: 0,
     checkin: { emoji: '🌤️', checked: false, title: '今天还没签到', sub: '记一餐、记心情，十秒搞定' },
     tabbar: tabbar.create(0)
   },
-  onTabTap(e) { tabbar.go(e) },
+  onTabTap(e) {
+    tabbar.go(e)
+  },
+  /**
+   * 微信右上角菜单里的「转发给朋友」和「复制链接」共用一个开关：页面只要没定义
+   * onShareAppMessage，这两个按钮就一起是灰的。之前只有报告页定义了，所以首页复制不出
+   * 链接，贴图那边也就没法粘小程序链接。
+   * path 一律指首页 —— 记录页和我的页是个人数据页，别人点开全是空的。
+   */
+  onShareAppMessage() {
+    return { title: '今天吃什么 · 帮我决定这一顿', path: '/pages/index/index' }
+  },
   onShow() {
     // 先把本地缓存画出来，切 tab 不再等云端往返
     this.render()
@@ -228,9 +276,22 @@ Page({
       : `/pages/checkin-form/checkin-form?date=${checkinLib.today()}`
     wx.navigateTo({ url })
   },
-  onHide() { this.stopRolling() },
-  onUnload() { this.stopRolling() },
-  toggleFilters() { this.setData({ filterOpen: !this.data.filterOpen }) },
+  onHide() {
+    this.stopRolling()
+  },
+  onUnload() {
+    this.stopRolling()
+  },
+  toggleFilters() {
+    this.setData({ filterOpen: !this.data.filterOpen })
+  },
+  /** 换候选范围就重抽一张：旧的那道可能根本不在新池子里，留着会前后矛盾 */
+  chooseSource(e) {
+    const source = e.currentTarget.dataset.key
+    if (!source || source === this.data.source) return
+    this.stopRolling()
+    this.setData({ source }, () => this.pick())
+  },
   chooseFilter(e) {
     this.stopRolling()
     const { type, value } = e.currentTarget.dataset
@@ -241,7 +302,12 @@ Page({
   },
   /** 筛选变了：重算计数与高亮；当前没有菜才补抽一张，换菜只归「开始随机选」管 */
   applyFilters(filters) {
-    this.setData({ filters, filterCount: countFilters(filters), candidateCount: this.getCandidates({ filters }).length, ...filterChoices(filters) })
+    this.setData({
+      filters,
+      filterCount: countFilters(filters),
+      candidateCount: this.getCandidates({ filters }).length,
+      ...filterChoices(filters)
+    })
     if (!this.data.dish) this.pick()
   },
   clearFilters() {
@@ -251,27 +317,49 @@ Page({
   /** ignoreRecent=true：不套「避开最近吃过」这条规则，只按筛选条件筛 */
   getCandidates(options) {
     const { meal, category, eatType, price } = (options && options.filters) || this.data.filters
-    const meals = meal || [], categoryList = category || [], eatTypeList = eatType || [], priceList = price || []
+    const meals = meal || [],
+      categoryList = category || [],
+      eatTypeList = eatType || [],
+      priceList = price || []
     const settings = store.getSettings()
-    const recentLimit = Date.now() - Number(settings.recentDays || 0) * 86400000
+    // 「避开最近吃过」原来是逐条 new Date(`${lastEatDate}T23:59:59`) 再比时间戳，
+    // 一次抽签要对整个菜库构造几百个 Date。改成先把窗口起点折成日期串再比字符串：
+    // ISO 日期串的字典序就是时间序。判定也顺带变成日期粒度，不再随「此刻几点」抖动
+    // （旧写法拿 23:59:59 当一天末尾，正好落在某天最后一秒时结果会翻一下）。
+    const recentDays = Number(settings.recentDays || 0)
+    const recentCutoff = checkinLib.formatDate(new Date(Date.now() - recentDays * 86400000))
     // dishes 可由调用方传入：一次抽签会问两遍候选，没必要反序列化两遍菜库
-    const source = options && options.dishes ? options.dishes : store.getDishes()
-    let list = source.filter(item => item.enableRandom !== false)
-      // 「小吃」当餐次筛时也要认分类是「小吃」的菜：老菜品没打过这个餐次标签，
-      // 只按 mealTypes 匹配的话，点「小吃」会得到一张空列表
-      .filter(item => !meals.length || meals.some(name => (item.mealTypes || []).includes(name) || (name === '小吃' && store.dishCategories(item).includes('小吃'))))
-      .filter(item => !categoryList.length || categoryList.some(name => store.dishCategories(item).includes(name)))
-      .filter(item => !eatTypeList.length || eatTypeList.some(name => (item.eatTypes || []).includes(name)))
-      .filter(item => !priceList.length || priceList.includes(item.price))
+    const dishes = options && options.dishes ? options.dishes : store.getDishes()
+    const scope = (options && options.scope) || this.data.source || 'mine'
+    let list = dishes
+      .filter(item => item.enableRandom !== false)
+      .filter(item => matchFilters(item, meals, categoryList, eatTypeList, priceList))
+    if (scope !== 'mine') {
+      // 推荐菜只在这份候选列表里临时拼进来，不落库、不进 storage，带 __recommend 标记：
+      // pick 看到它就跳过「多久没吃」的加成，页面看到它就在确认时先收进菜谱。
+      // 同名菜已经收藏过的跳过，免得同一道菜在池子里出现两次。
+      const owned = new Set(dishes.map(item => item.name))
+      const extra = recipes.RECIPES.filter(item => !owned.has(item.name))
+        .filter(item => matchFilters(item, meals, categoryList, eatTypeList, priceList))
+        .map(item => ({ ...item, __recommend: true, score: 0, eatCount: 0, lastEatDate: '', enableRandom: true }))
+      list = scope === 'recommend' ? extra : list.concat(extra)
+    }
     // allowRepeat=false 时硬过滤（用户预期就是「最近吃过的不出现」）；
-    // =true 时不在这里排除，改由 pick 的权重压一档——允许重复不等于优先重复
+    // =true 时不在这里排除，改由 pick 的权重压一档——允许重复不等于优先重复。
+    // 推荐菜没有吃过记录，这一关天然过。
     if (!(options && options.ignoreRecent) && !settings.allowRepeat && settings.recentDays > 0) {
-      list = list.filter(item => !item.lastEatDate || new Date(`${item.lastEatDate}T23:59:59`).getTime() < recentLimit)
+      list = list.filter(item => !item.lastEatDate || item.lastEatDate < recentCutoff)
     }
     return list
   },
   formatDish(result) {
-    return { ...result, lastEatText: daysAgo(result.lastEatDate), scoreText: result.score ? Number(result.score).toFixed(1) : '暂无' }
+    return {
+      ...result,
+      lastEatText: daysAgo(result.lastEatDate),
+      scoreText: result.score ? Number(result.score).toFixed(1) : '暂无',
+      // 界面上要说明「这道来自推荐库、确认后会收进你的菜谱」，不然用户以为抽到了神秘东西
+      recommend: Boolean(result.__recommend)
+    }
   },
   /** 立刻重抽一道（筛选变化、点骰子落定时用），会覆盖记住的那道 */
   pick(options) {
@@ -309,12 +397,34 @@ Page({
     }
     this.rollTimer = setTimeout(spin, 100)
   },
-  viewDetail() { if (this.data.dish) wx.navigateTo({ url: `/pages/dish-detail/dish-detail?id=${this.data.dish.id}` }) },
-  confirmDish() {
+  viewDetail() {
+    if (this.data.dish) wx.navigateTo({ url: `/pages/dish-detail/dish-detail?id=${this.data.dish.id}` })
+  },
+  /**
+   * 「就吃这个」。
+   * 抽到推荐菜谱时，它还没有 dishId —— 先静默收进自己的菜谱拿到 id，再进记录页。
+   * 这一步放在这里而不是抽签时：抽归抽，用户不点确认就不该往菜库里塞东西。
+   */
+  async confirmDish() {
     if (!this.data.dish) return
     // 同一个手势里顺手补一次：用户点「就吃这个」是明确要记这一餐了
     subscribe.topUpIfNeeded()
     const meal = (this.data.filters.meal || [])[0] || store.getSettings().defaultMeal || '午餐'
-    wx.navigateTo({ url: `/pages/record-form/record-form?dishId=${this.data.dish.id}&meal=${meal}` })
+    let dishId = this.data.dish.id
+    if (this.data.dish.recommend) {
+      wx.showLoading({ title: '收进菜谱', mask: true })
+      try {
+        const result = await store.saveFromRecipe(dishId)
+        dishId = result.dish ? result.dish.id : ''
+      } catch (error) {
+        console.error('收藏推荐菜失败', error)
+      } finally {
+        wx.hideLoading()
+      }
+      if (!dishId) return wx.showToast({ title: '收藏失败，再试一次', icon: 'none' })
+      // 收进菜谱后重新渲染，顶部的「一共几道」和「最近吃过」跟着变
+      this.render()
+    }
+    wx.navigateTo({ url: `/pages/record-form/record-form?dishId=${dishId}&meal=${meal}` })
   }
 })

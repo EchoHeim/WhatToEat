@@ -1,4 +1,5 @@
 const reminderLib = require('./reminder')
+const recipes = require('./recipes')
 
 const KEYS = {
   dishes: 'wte_dishes_v1',
@@ -23,7 +24,9 @@ const KEYS = {
   // 每个集合的增量同步水位，见 pullCollection
   syncStamps: 'wte_sync_stamps_v1',
   // 待上云清单：本地改过、还没确认写进云端的条目，见 markDirty
-  dirty: 'wte_dirty_v1'
+  dirty: 'wte_dirty_v1',
+  // 「快手 → 简单」这个标签改名只迁移一次，跑过就置位
+  tagRename: 'wte_tag_rename_v1'
 }
 
 /**
@@ -37,7 +40,9 @@ const SUBSCRIBE_STATE_KEY = 'wte_sub_state_v1'
 // 「小吃」已经从分类里拿掉（它更像餐次/吃法），但不是所有老菜品都能迁过来 ——
 // dish-form 打开老数据时会把它的分类临时补回列表，别让存量菜显示成「没选分类」
 const CATEGORIES = ['中餐', '西餐', '日料', '韩餐', '面食', '米饭', '火锅', '烧烤', '快餐', '甜品', '饮品', '其他']
-const TAGS = ['早餐', '午餐', '晚餐', '夜宵', '自己做', '外卖', '堂食', '清淡', '辣', '高蛋白', '减脂', '快手', '聚餐']
+// 「快手」是「快手菜」的意思，但很多人第一眼以为是那个短视频 App —— 2026-11-07 改成「简单」。
+// 存量菜品里的旧标签由 bootstrap 里的 migrateTagRename() 一次性换掉。
+const TAGS = ['早餐', '午餐', '晚餐', '夜宵', '自己做', '外卖', '堂食', '清淡', '辣', '高蛋白', '减脂', '简单', '聚餐']
 // 「小吃」不是正餐，但它既能当餐次记（下午垫一口），也能当筛选用 —— 放最后不抢正餐的位置
 const MEALS = ['早餐', '午餐', '晚餐', '夜宵', '小吃']
 const EAT_TYPES = ['自己做', '外卖', '堂食']
@@ -57,12 +62,12 @@ const DEFAULT_SETTINGS = { recentDays: 7, allowRepeat: true, defaultMeal: '午�
 // 预置菜库：只放菜品本身的信息，评分 / 吃过次数 / 最近一次 / 备注一律留空，
 // 免得新用户一进来就被"假数据"糊一脸（统计、最喜欢、近期过滤全会被污染）。
 const seedDishes = [
-  { id: 'd1', name: '番茄炒蛋', emoji: '🍅', category: '中餐', tags: ['家常菜', '快手', '下饭'], mealTypes: ['午餐', '晚餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd1', name: '番茄炒蛋', emoji: '🍅', category: '中餐', tags: ['家常菜', '简单', '下饭'], mealTypes: ['午餐', '晚餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
   { id: 'd2', name: '牛肉面', emoji: '🍜', category: '面食', tags: ['高蛋白', '热乎'], mealTypes: ['午餐', '晚餐'], eatTypes: ['外卖', '堂食'], price: '普通', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
   { id: 'd3', name: '黄焖鸡米饭', emoji: '🍛', category: '米饭', tags: ['下饭', '外卖'], mealTypes: ['午餐', '晚餐'], eatTypes: ['外卖', '堂食'], price: '普通', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
   { id: 'd4', name: '寿司拼盘', emoji: '🍣', category: '日料', tags: ['清淡', '聚餐'], mealTypes: ['午餐', '晚餐'], eatTypes: ['堂食', '外卖'], price: '丰盛', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
   { id: 'd5', name: '火锅', emoji: '🍲', category: '火锅', tags: ['辣', '聚餐'], mealTypes: ['晚餐', '夜宵'], eatTypes: ['堂食'], price: '丰盛', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
-  { id: 'd6', name: '鸡蛋三明治', emoji: '🥪', category: '西餐', tags: ['早餐', '快手'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
+  { id: 'd6', name: '鸡蛋三明治', emoji: '🥪', category: '西餐', tags: ['早餐', '简单'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
   { id: 'd7', name: '麻辣烫', emoji: '🥘', category: '小吃', tags: ['辣', '外卖'], mealTypes: ['午餐', '晚餐', '夜宵'], eatTypes: ['外卖', '堂食'], price: '普通', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true },
   { id: 'd8', name: '酸奶水果碗', emoji: '🥣', category: '甜品', tags: ['早餐', '减脂', '清淡'], mealTypes: ['早餐'], eatTypes: ['自己做'], price: '经济', score: 0, eatCount: 0, lastEatDate: '', remark: '', enableRandom: true }
 ].map((dish, index) => ({ ...dish, createdAt: Date.now() - index * 1000 }))
@@ -482,6 +487,39 @@ function bootstrap() {
   if (!wx.getStorageSync(KEYS.checkins)) set(KEYS.checkins, [])
   // 记录按年分片：启动时把旧版单键数据搬过去，搬完旧键就删掉（幂等）
   migrateRecordShards()
+  // 标签改名（快手 → 简单）：只跑一次，跑完置位
+  migrateTagRename()
+  // 启动流程里难免要读数据（迁移函数就是），读一次就会把快照坐进 readCache。
+  // 这里统一清掉：之后第一次读重新从 storage 取，不会拿到「启动中途」那份快照。
+  // 不清的话，谁在 bootstrap 之后再直接写 storage（测试的 reset 就是），都会被这份旧缓存盖住。
+  resetReadCache()
+}
+
+/**
+ * 把存量菜品里的「快手」换成「简单」。
+ *
+ * 「快手」本意是「快手菜」（做得快），但很多人第一眼会读成那个短视频 App。
+ * 内置标签库、推荐菜谱、口味统计白名单都已经改过来了，用户自己建过和以前收藏的菜还带着旧标签，
+ * 这里一次性换掉。用标记位保证只跑一次 —— 以后用户真想自己写「快手」，不该被再改回去。
+ *
+ * 改过的菜要 markDirty 并 bump updatedAt，否则云端那份旧标签会在下次同步时被拉回来覆盖。
+ */
+function migrateTagRename() {
+  if (wx.getStorageSync(KEYS.tagRename)) return
+  // 这里刻意不走 getDishes()：bootstrap 是启动入口，此时把读缓存坐实会带来副作用 ——
+  // 之后任何「直接改 storage」的路径（测试的 reset 就是）都会被旧缓存盖住。
+  const stored = wx.getStorageSync(KEYS.dishes)
+  if (!Array.isArray(stored) || !stored.length) return set(KEYS.tagRename, true)
+  let changed = false
+  stored.forEach(dish => {
+    if (!Array.isArray(dish.tags) || !dish.tags.includes('快手')) return
+    dish.tags = dish.tags.map(tag => (tag === '快手' ? '简单' : tag))
+    dish.updatedAt = Date.now()
+    markDirty('dishes', dish.id)
+    changed = true
+  })
+  if (changed) set(KEYS.dishes, stored)
+  set(KEYS.tagRename, true)
 }
 
 function getDishes() {
@@ -572,6 +610,40 @@ async function deleteDish(id) {
   const dish = getDish(id)
   set(KEYS.dishes, getDishes().filter(item => item.id !== id))
   if (dish) scheduleCloudDelete('dishes', dish, '删除菜品')
+}
+
+/**
+ * 把一道推荐菜谱收进自己的菜品库。
+ *
+ * 判重按菜名：推荐库是版本内容，用户可能已经手打过同一道菜（预置菜里就有「番茄炒蛋」）。
+ * 撞名时不造第二条，直接把已有的那道返回去，页面据此提示「已经在菜谱里了」并跳过去。
+ *
+ * remark 存推荐理由，收藏后用户能在详情里看见当初为什么推荐它，也可以随手改掉。
+ * fromRecipe 只是来源标记，**不参与抽签权重**（抽签那边认的是临时字段 __recommend）。
+ */
+async function saveFromRecipe(recipeId) {
+  const recipe = recipes.getRecipe(recipeId)
+  if (!recipe) return { ok: false, reason: 'missing' }
+  const existed = getDishes().find(item => item.name === recipe.name)
+  if (existed) return { ok: false, reason: 'exists', dish: existed }
+  const dish = await saveDish({
+    name: recipe.name,
+    emoji: recipe.emoji,
+    category: recipe.category,
+    tags: recipe.tags.slice(),
+    mealTypes: recipe.mealTypes.slice(),
+    eatTypes: recipe.eatTypes.slice(),
+    price: recipe.price,
+    remark: recipe.why || '',
+    crowd: recipe.crowd.slice(),
+    fromRecipe: recipe.id
+  })
+  return { ok: true, dish }
+}
+
+/** 推荐库里哪些菜名已经在自己的菜谱里了（菜谱页用来把按钮置灰），返回 Set 方便 O(1) 查 */
+function ownedRecipeNames() {
+  return new Set(getDishes().map(item => item.name))
 }
 
 // ---------- 首页当前显示的那道菜 ----------
@@ -1466,13 +1538,28 @@ function localData(item) {
   delete data._openid
   return data
 }
+/**
+ * 给集合挂上稳定的分页排序。
+ *
+ * skip + limit 分页依赖「每一页的顺序都一样」，而云数据库在没有 orderBy 时不保证
+ * 跨页顺序稳定 —— 同步过程本身就在往这些集合里写，一条文档被挤到已经翻过的位置，
+ * 那一页之后就再也读不到它；而水位照样按 maxStamp 往前推，等于永久丢这条。
+ *
+ * 主排序键用 updatedAt：与 `_openid_1_updatedAt_1` 复合索引对齐，增量查询不用额外排序。
+ * 再挂一个 `_id` 兜并列：同一毫秒落库的文档 updatedAt 相同，而 `_id` 唯一，
+ * 这样每页的边界才是确定的（初始菜品根本没有 updatedAt，全靠它兜）。
+ */
+function orderedQuery(collection) {
+  return collection.orderBy('updatedAt', 'asc').orderBy('_id', 'asc')
+}
+
 async function queryAll(name) {
   const collection = wx.cloud.database().collection(name)
   const all = []
   const pageSize = 20
   let page = 0
   while (true) {
-    const result = await collection.skip(page * pageSize).limit(pageSize).get()
+    const result = await orderedQuery(collection).skip(page * pageSize).limit(pageSize).get()
     all.push(...result.data)
     if (result.data.length < pageSize) break
     page += 1
@@ -1506,7 +1593,12 @@ async function querySince(name, stamp) {
   let page = 0
   const from = Math.max(0, Number(stamp) - SYNC_STAMP_SAFETY_MS)
   while (true) {
-    const result = await collection.where({ updatedAt: command.gte(from) }).skip(page * pageSize).limit(pageSize).get()
+    // 排序理由同 queryAll：增量查询同样靠 skip 翻页，顺序不定就会漏条
+    const result = await orderedQuery(collection)
+      .where({ updatedAt: command.gte(from) })
+      .skip(page * pageSize)
+      .limit(pageSize)
+      .get()
     all.push(...result.data)
     if (result.data.length < pageSize) break
     page += 1
@@ -1656,22 +1748,41 @@ function scheduleCloudDelete(collectionName, item, context) {
     removeTombstone(collectionName, item.id)
   })
 }
+/**
+ * 把一个集合的本地条目整体上云（首次上云 / 云端集合重建后补齐）。
+ *
+ * 以前这里是无条件逐条 `await upsertCloud`：一条两次往返，导入 1000 条就是两千次，
+ * 而这批数据往往刚在 flushDirtyUploads 里用批量通道传过一遍——等于原地又写了一遍。
+ *
+ * 现在条数够就交给 syncBatch：服务端按 id 一次查重、按 updatedAt 判新旧，
+ * 刚传过的那批会被直接跳过，只剩「条数 ÷ 100」次调用；顺带还比逐条通道安全，
+ * 本地旧版本不会盖掉云端的新版本。
+ * 条数太少（< SYNC_BATCH_MIN，云函数冷启动比逐条还慢）或批量通道不通时，才退回逐条。
+ */
+async function uploadLocalCollection(collectionName, list) {
+  const ids = (list || []).map(item => item && item.id).filter(Boolean)
+  if (!ids.length) return
+  const rest = !batchUnavailable && ids.length >= SYNC_BATCH_MIN ? await uploadInBatches(collectionName, ids) : ids
+  for (const id of rest) {
+    const item = findLocalItem(collectionName, id)
+    // 本地已经删掉了：云端那条交给墓碑处理，待传清单可以划掉
+    if (!item) { clearDirty(collectionName, id); continue }
+    await upsertCloud(collectionName, item)
+    clearDirty(collectionName, id)
+  }
+}
+
 async function migrateLocalToCloud() {
-  const dishes = getDishes()
-  const records = getRecords()
-  // 传完就把待传清单上的划掉：这条路径本来就是「本机全量上云」，
-  // 留着清单只会让下一次同步为每条白跑一次「查云端 → 一样新 → 划掉」
-  for (const dish of dishes) { await upsertCloud('dishes', dish); clearDirty('dishes', dish.id) }
-  for (const record of records) { await upsertCloud('meal_records', record); clearDirty('meal_records', record.id) }
-  // reminders 集合可能尚未在云开发控制台创建，失败时保留本地数据即可
+  await uploadLocalCollection('dishes', getDishes())
+  await uploadLocalCollection('meal_records', getRecords())
+  // reminders / daily_checkins 集合可能尚未在云开发控制台创建，失败时保留本地数据即可
   try {
-    for (const reminder of getReminders()) { await upsertCloud('reminders', reminder); clearDirty('reminders', reminder.id) }
+    await uploadLocalCollection('reminders', getReminders())
   } catch (error) {
     console.error('提醒数据上云失败，请确认已创建 reminders 集合', error)
   }
-  // daily_checkins 集合可能尚未创建，失败时保留本地签到即可
   try {
-    for (const checkin of getCheckins()) { await upsertCloud(CHECKIN_COLLECTION, checkin); clearDirty(CHECKIN_COLLECTION, checkin.id) }
+    await uploadLocalCollection(CHECKIN_COLLECTION, getCheckins())
   } catch (error) {
     console.error('签到数据上云失败，请确认已创建 daily_checkins 集合', error)
   }
@@ -1910,4 +2021,4 @@ function syncThen(callback) {
     .catch(error => console.error('云同步失败，使用本地数据', error))
 }
 
-module.exports = { SUBSCRIBE_STATE_KEY, CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, syncThen, getDishes, getDish, dishCategories, saveDish, deleteDish, getHomePick, saveHomePick, getRecords, getRecord, saveRecord, deleteRecord, normalizeClock, clockFromStamp, recordClock, exportSnapshot, writeSnapshotFile, readSnapshotFile, previewSnapshot, applySnapshot, clearAllData, storageReport, storageUsage, getRecordYears, pruneTombstones, pruneErrorLogs, computeNextTriggerDate, backfillNextTriggerDate, NEXT_TRIGGER_NONE, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, onCloudError, flushCloudQueue, logError, resetReadCache }
+module.exports = { SUBSCRIBE_STATE_KEY, CATEGORIES, TAGS, MEALS, EAT_TYPES, PRICES, PRICE_RANGES, bootstrap, syncFromCloud, syncThen, getDishes, getDish, dishCategories, saveDish, deleteDish, saveFromRecipe, ownedRecipeNames, getHomePick, saveHomePick, getRecords, getRecord, saveRecord, deleteRecord, normalizeClock, clockFromStamp, recordClock, exportSnapshot, writeSnapshotFile, readSnapshotFile, previewSnapshot, applySnapshot, clearAllData, storageReport, storageUsage, getRecordYears, pruneTombstones, pruneErrorLogs, computeNextTriggerDate, backfillNextTriggerDate, NEXT_TRIGGER_NONE, getCheckins, getCheckinByDate, saveCheckin, deleteCheckin, getReminders, getReminder, saveReminder, deleteReminder, toggleReminder, addPushQuota, countTodayReminders, describeCloudError, checkCloudReady, getSettings, saveSettings, onCloudError, flushCloudQueue, logError, resetReadCache }

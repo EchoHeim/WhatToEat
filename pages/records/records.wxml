@@ -1,17 +1,17 @@
 <import src="/styles/tabbar.wxml" />
 <navigation-bar title="饮食记录" back="{{false}}" color="#292824" background="#F7F4ED"></navigation-bar>
 <scroll-view class="page-scroll" scroll-y type="list"><view class="page-pad">
-  <view class="title-row"><view class="title-main"><view class="page-title">一日三餐，好好吃饭</view><view class="muted count">唯有美食与爱，不可辜负！</view></view><view class="add-btn" hover-class="add-btn-hover" bindtap="addToday">＋ 记一餐</view></view>
+  <view class="title-row"><view class="title-main"><view class="page-title">一日三餐，好好吃饭</view><view class="muted count">唯有美食与爱，不可辜负！</view></view><view class="add-btn" hover-class="add-btn-hover" aria-role="button" aria-label="记一餐" bindtap="addToday">＋ 记一餐</view></view>
 
   <view class="search-bar">
     <text class="search-emoji">🔍</text>
     <input class="search-input" value="{{keyword}}" placeholder="搜菜名、备注、状态" placeholder-class="search-ph" confirm-type="search" bindinput="onSearchInput" />
-    <text wx:if="{{keyword}}" class="search-clear" bindtap="clearSearch">清空</text>
+    <text wx:if="{{keyword}}" class="search-clear" aria-role="button" aria-label="清空搜索" bindtap="clearSearch">清空</text>
   </view>
 
   <block wx:if="{{!searching}}">
   <view class="calendar card" bindtouchstart="onCalendarTouchStart" bindtouchend="onCalendarTouchEnd">
-    <view class="month-head"><text class="month-arrow {{canPrev ? '' : 'disabled'}}" bindtap="prevMonth">‹</text><view class="month-center"><text class="month-title">{{monthTitle}}</text><text wx:if="{{showBackToMonth}}" class="month-back" bindtap="backToMonth">今</text><text wx:if="{{selectedDate}}" class="month-back" bindtap="clearDate">月</text></view><text class="month-arrow {{canNext ? '' : 'disabled'}}" bindtap="nextMonth">›</text></view>
+    <view class="month-head"><text class="month-arrow {{canPrev ? '' : 'disabled'}}" aria-role="button" aria-label="{{canPrev ? '上个月' : '上个月，已经是最早的月份'}}" bindtap="prevMonth">‹</text><view class="month-center"><text class="month-title">{{monthTitle}}</text><text wx:if="{{showBackToMonth}}" class="month-back" aria-role="button" aria-label="回到本月" bindtap="backToMonth">今</text><text wx:if="{{selectedDate}}" class="month-back" aria-role="button" aria-label="取消选中日期，显示整月" bindtap="clearDate">月</text></view><text class="month-arrow {{canNext ? '' : 'disabled'}}" aria-role="button" aria-label="{{canNext ? '下个月' : '下个月，已经是最新的月份'}}" bindtap="nextMonth">›</text></view>
     <view class="week-row"><text wx:for="{{weeks}}" wx:key="*this">{{item}}</text></view>
     <view class="day-grid"><view wx:for="{{cells}}" wx:key="key" class="day {{item.empty ? 'empty-day' : ''}} {{item.future ? 'future' : ''}} {{item.hasMood ? 'with-mood' : ''}} {{selectedDate === item.date ? 'selected' : ''}}" data-date="{{item.date}}" aria-role="button" aria-label="{{item.label}}" bindtap="selectDate"><view class="day-num {{item.isToday ? 'is-today' : ''}} {{item.hasFestival ? 'festival' : ''}} {{item.hasAnniversary ? 'anniversary' : ''}}"><text>{{item.day}}</text><view wx:if="{{item.hasReminder}}" class="day-dot"></view></view><image wx:if="{{item.moodIcon}}" class="day-mark-img" mode="aspectFit" src="{{item.moodIcon}}" /><text wx:elif="{{item.mark}}" class="day-mark">{{item.mark}}</text></view></view>
   </view>
@@ -29,7 +29,7 @@
     </view>
   </view>
 
-  <view wx:if="{{emptyHint}}" class="today-hint card" data-date="{{hintTargetDate}}" bindtap="openHintCheckin">
+  <view wx:if="{{emptyHint}}" class="today-hint card" data-date="{{hintTargetDate}}" aria-role="button" aria-label="{{emptyHint.title}}，{{emptyHint.desc}}，写心情" bindtap="openHintCheckin">
     <view class="hint-emoji">{{weatherEmoji}}</view>
     <view class="hint-main"><view class="hint-title">{{emptyHint.title}}</view><view class="hint-desc">{{emptyHint.desc}}</view></view>
     <view class="hint-action">写心情</view>
@@ -40,16 +40,16 @@
   <view wx:if="{{days.length}}" class="day-list">
     <view wx:for="{{days}}" wx:key="date" class="day-card card">
       <view class="day-head">
-        <view class="day-mood {{item.moodIcon ? 'filled' : ''}}" data-date="{{item.date}}" bindtap="openCheckin"><image wx:if="{{item.moodIcon}}" class="day-mood-img" mode="aspectFit" src="{{item.moodIcon}}" /><text wx:else>＋</text></view>
-        <view class="day-title" data-date="{{item.date}}" bindtap="openCheckin">
+        <view class="day-mood {{item.moodIcon ? 'filled' : ''}}" data-date="{{item.date}}" aria-role="button" aria-label="{{item.label}} 心情{{item.moodLabel || '还没写'}}，点击{{item.moodIcon ? '修改' : '记录'}}" bindtap="openCheckin"><image wx:if="{{item.moodIcon}}" class="day-mood-img" mode="aspectFit" src="{{item.moodIcon}}" /><text wx:else>＋</text></view>
+        <view class="day-title" data-date="{{item.date}}" aria-role="button" aria-label="{{item.label}} {{item.weekday}}，{{item.moodLabel ? '心情 ' + item.moodLabel : '还没写心情'}}，{{item.mealCount}} 餐" bindtap="openCheckin">
           <view class="day-line"><text class="day-label">{{item.label}}</text><text class="day-weekday">{{item.weekday}}</text><text wx:if="{{item.isToday}}" class="day-today">今天</text></view>
           <view class="day-sub">{{item.moodLabel ? '心情 ' + item.moodLabel : '还没写心情'}} · {{item.mealCount}} 餐</view>
         </view>
-        <view class="day-add" data-date="{{item.date}}" catchtap="addMeal">补一餐</view>
+        <view class="day-add" data-date="{{item.date}}" aria-role="button" aria-label="给 {{item.label}} 补一餐" catchtap="addMeal">补一餐</view>
       </view>
-      <view wx:if="{{item.note}}" class="day-note" data-date="{{item.date}}" bindtap="openCheckin">{{item.note}}</view>
+      <view wx:if="{{item.note}}" class="day-note" data-date="{{item.date}}" aria-role="button" aria-label="随笔：{{item.note}}" bindtap="openCheckin">{{item.note}}</view>
       <view wx:if="{{item.meals.length}}" class="meal-list">
-        <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal" data-id="{{meal.id}}" bindtap="editRecord" bindlongpress="removeRecord">
+        <view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="id" class="meal" data-id="{{meal.id}}" aria-role="button" aria-label="{{meal.mealType}}{{meal.timeText ? ' ' + meal.timeText : ''}}，{{meal.dishName}}，{{meal.score}} 分，轻点编辑，长按删除" bindtap="editRecord" bindlongpress="removeRecord">
           <text class="meal-emoji">{{meal.emoji}}</text>
           <text class="meal-type">{{meal.mealType}}</text>
           <text wx:if="{{meal.timeText}}" class="meal-time">{{meal.timeText}}</text>
@@ -65,7 +65,7 @@
   <block wx:else>
     <view wx:if="{{hits.length}}" class="search-summary">找到 {{hits.length}} 条{{hits.length >= 50 ? '，只显示最近 50 条' : ''}}</view>
     <view wx:if="{{hits.length}}" class="hit-list">
-      <view wx:for="{{hits}}" wx:key="id" class="hit card" data-id="{{item.id}}" bindtap="editRecord">
+      <view wx:for="{{hits}}" wx:key="id" class="hit card" data-id="{{item.id}}" aria-role="button" aria-label="{{item.dishName}}，{{item.dateText}} {{item.weekday}} {{item.mealType}}{{item.timeText ? ' ' + item.timeText : ''}}，{{item.score}} 分" bindtap="editRecord">
         <text class="hit-emoji">{{item.emoji}}</text>
         <view class="hit-body">
           <view class="hit-line"><text class="hit-name">{{item.dishName}}</text><text class="hit-score">★ {{item.score}}</text></view>

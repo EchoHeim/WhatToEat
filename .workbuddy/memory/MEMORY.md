@@ -69,7 +69,7 @@
 ## 微信开发者工具
 - stable 2.02.2608070，路径 `C:\Program Files (x86)\Tencent\微信web开发者工具`；Nightly ≥ 2.02.2608312 才有虚拟支付 skill。
 - 启动：`env -u ELECTRON_RUN_AS_NODE -u NODE_OPTIONS "./微信开发者工具.exe"`（必须非沙箱）；`ELECTRON_RUN_AS_NODE=1` 会空跑无窗口。
-- **CLI 在 Git Bash 里完全没输出**；换 Windows 原生终端 `& "...\cli.bat" preview ... --qr-format image` 正常。端口在 `User Data/<hash>/Default/.ide`。**改 `packOptions.ignore` 必须 `cli.bat quit` 重启 IDE**（close+open 无效）。`preview` 放过未引用的坏 js，`upload` 不放过；上传后还得去公众平台设体验版。
+- **`cli.bat` 可以在 Git Bash 里直接调、有正常输出**（`"/c/Program Files (x86)/Tencent/微信web开发者工具/cli.bat" upload ...`）。2026-11-07 实测推翻旧结论「Git Bash 里完全没输出」——真正不能用的是**从 Bash 调 `cmd.exe`**，会被安全策略拦（bypasses command validation）。端口在 `User Data/2ca4252ffa87560ea1fd48b913e45179/Default/.ide`。**改 `packOptions.ignore` 必须 `cli.bat quit` 重启 IDE**（close+open 无效）。`preview` 放过未引用的坏 js，`upload` 不放过。**`cli upload` 只有 `-v`/`-d`/`-i` 三个参数，CLI 全表没有提审命令**（cloud/open/login/islogin/preview/auto-preview/upload/build-npm/auto/agent/reset-fileutils/close/quit/cache/engine/open-other/build-ipa/build-apk）——**设为体验版、提交审核只能人工在 mp 后台点**，个人主体也没有提审 API。上传前先 `cli.bat islogin` 要 `{"login":true}`；上传后包体积看 IDE 压缩值（本地源码口径约 1.7 倍）。
 
 ## 仓库与文档
 - **版本号唯一来源 `utils/version.js`**（`APP_VERSION`），与 `cli upload -v` 一起改。**只有 lodge 明确说改版本号时才改**，不要每次改完代码顺手升一版——他 2026-11-06 明确要求过。
